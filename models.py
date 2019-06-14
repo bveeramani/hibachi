@@ -1,0 +1,38 @@
+"""Implements various binary classification models."""
+import torch
+import torch.nn as nn
+
+
+class LogisticBinaryClassifier(nn.Module):
+    """Implements a simple logistic regression model"""
+
+    def __init__(self, in_features):
+        super(LogisticRegression, self).__init__()
+        self.linear = nn.Linear(in_features, 1)
+
+    def forward(self, x):  # pylint: disable=arguments-differ
+        return torch.sigmoid(self.linear(x))
+
+
+class MultiLayerPreceptron(torch.nn.Module):
+    """Implements a simple multi-layer preceptron"""
+
+    def __init__(self, input_size):
+        super(MultiLayerPreceptron, self).__init__()
+        self.fc1 = torch.nn.Linear(input_size, 32)
+        self.relu1 = torch.nn.ReLU()
+        self.fc2 = torch.nn.Linear(32, 64)
+        self.relu2 = torch.nn.ReLU()
+        self.fc3 = torch.nn.Linear(64, 32)
+        self.relu3 = torch.nn.ReLU()
+        self.fc4 = torch.nn.Linear(32, 1)
+
+    def forward(self, x):
+        output = self.fc1(x)
+        output = self.relu1(output)
+        output = self.fc2(output)
+        output = self.relu2(output)
+        output = self.fc3(output)
+        output = self.relu3(output)
+        output = self.fc4(output)
+        return torch.sigmoid(output)
