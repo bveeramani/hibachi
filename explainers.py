@@ -5,6 +5,37 @@ from lime.lime_tabular import LimeTabularExplainer
 import numpy as np
 import torch
 
+import ccm
+
+
+def CCMExplainer(num_features, epsilon=0.01, target_type='binary'):
+    """Returns an attribution method that uses the Conditional Covariance
+    Minimization algorithm.
+
+    Arguments:
+        num_features (optional, int): The number of features to select.
+        epsilon (optional, float): The regularization parameter.
+        target_type (optional, string): This argument is currently not supported.
+
+    Returns:
+        A function that takes in a dataset and returns the selected features.
+    """
+    assert target_type == "binary", "Non-binary target types are not supported"
+
+    def explain(dataset):
+        """Prints CCM attribution for a dataset."""
+        # An N x K array where N is the number of samples and K is the number of features
+        feature_matrix = np.array([list(features) for features, label in dataset])
+        # An length-N 1-dimensional array where N is the number of samples
+        label_matrix = np.array([1 if label == 1 else -1 for features, label in dataset])
+        rank = ccm.ccm(feature_matrix, label_matrix, num_features, target_type, epsilon, iterations=100, verbose=False)
+        selected_features = np.argsort(rank)[:num_features]
+
+        print('The features selected by CCM are features {}'.format(selected_features))
+        return selected_features
+
+    return explain
+
 
 def LimeExplainer(model, dataset, kwargs):
     """Returns a tabular Lime attribution method.
@@ -49,6 +80,7 @@ def LimeExplainer(model, dataset, kwargs):
     explainer = LimeTabularExplainer(feature_matrix, **kwargs)
 
     def explain(sample):
+        """Plots Lime attribution for a feature-label pair."""
         features = sample[0]
         features = np.array(features)
 
