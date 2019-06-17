@@ -68,7 +68,6 @@ def main():
                         action='store_true',
                         help='disable CUDA support')
 
-
     args = parser.parse_args()
 
     if not args.cuda_disabled and torch.cuda.is_available():

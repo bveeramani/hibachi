@@ -25,13 +25,22 @@ def CCMExplainer(num_features, epsilon=0.01, target_type='binary'):
     def explain(dataset):
         """Prints CCM attribution for a dataset."""
         # An N x K array where N is the number of samples and K is the number of features
-        feature_matrix = np.array([list(features) for features, label in dataset])
+        feature_matrix = np.array(
+            [list(features) for features, label in dataset])
         # An length-N 1-dimensional array where N is the number of samples
-        label_matrix = np.array([1 if label == 1 else -1 for features, label in dataset])
-        rank = ccm.ccm(feature_matrix, label_matrix, num_features, target_type, epsilon, iterations=100, verbose=False)
+        label_matrix = np.array(
+            [1 if label == 1 else -1 for features, label in dataset])
+        rank = ccm.ccm(feature_matrix,
+                       label_matrix,
+                       num_features,
+                       target_type,
+                       epsilon,
+                       iterations=100,
+                       verbose=False)
         selected_features = np.argsort(rank)[:num_features]
 
-        print('The features selected by CCM are features {}'.format(selected_features))
+        print('The features selected by CCM are features {}'.format(
+            selected_features))
         return selected_features
 
     return explain
