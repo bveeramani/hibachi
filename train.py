@@ -25,13 +25,13 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from datasets import OteyP450
-from models import MultiLayerPreceptron, LogisticBinaryClassifier
+from models import *
 
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_EPOCH_SIZE = 64
 DEFAULT_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-ModelType = MultiLayerPreceptron
+ModelType = SupportVectorMachine
 MODEL_ARGS = [8]
 MODEL_KWARGS = {}
 
@@ -60,6 +60,11 @@ def main():
                         dest='cuda_disabled',
                         action='store_true',
                         help='disable CUDA support')
+    parser.add_argument('--save',
+                        dest='save_model',
+                        action='store_true',
+                        help='save trained model')
+
 
     args = parser.parse_args()
 
@@ -78,7 +83,11 @@ def main():
                   batch_size=args.batch_size,
                   num_epochs=args.num_epochs,
                   device=device)
-    save_model(model, batch_size=args.batch_size, num_epochs=args.num_epochs)
+
+    if args.save_model:
+        save_model(model, batch_size=args.batch_size, num_epochs=args.num_epochs)
+
+    return 0
 
 
 #pylint: disable=too-many-arguments, too-many-locals
@@ -87,7 +96,7 @@ def train(model,
           test_dataset=None,
           batch_size=DEFAULT_BATCH_SIZE,
           num_epochs=DEFAULT_EPOCH_SIZE,
-          loss_func=nn.BCELoss(reduction='mean'),
+          loss_func=nn.BCELoss(),
           device=DEFAULT_DEVICE):
     """Trains the specified model.
 
@@ -135,12 +144,15 @@ def train(model,
             labels = labels.to(device)
 
             predictions = model(features)
-            loss = loss_func(predictions.squeeze(), labels)
+            for i in range(len(labels)):
+                if labels[i] == 0:
+                    labels[i] = -1
+
+            loss = loss_func(predictions, labels)
             # debug_batch(batch_number, epoch, loss)
 
             loss.backward()
             optimizer.step()
-            optimizer.zero_grad()
 
         if test_dataset:
             test(model, test_dataset, device=device, batch_size=batch_size * 2)
@@ -151,7 +163,7 @@ def train(model,
 def test(model,
          dataset,
          batch_size=DEFAULT_DEVICE * 2,
-         loss_func=nn.BCELoss(reduction='mean'),
+         loss_func=nn.BCELoss(),
          device=DEFAULT_DEVICE):
     """Tests a model over the specified dataset."""
 

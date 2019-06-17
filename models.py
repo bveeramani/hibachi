@@ -14,8 +14,35 @@ class LogisticBinaryClassifier(nn.Module):
         return torch.sigmoid(self.linear(x))
 
 
-class MultiLayerPreceptron(torch.nn.Module):
-    """Implements a simple multi-layer preceptron"""
+class SupportVectorMachine(torch.nn.Module):
+    """Implements a basic linear support vector machine."""
+
+    def __init__(self, input_size):
+        super(SupportVectorMachine, self).__init__()
+        self.linear = nn.Linear(input_size, 1)
+
+    def forward(self, x):  # pylint: disable=arguments-differ
+        return self.linear(x)
+
+
+class SimpleMultiLayerPreceptron(torch.nn.Module):
+    """Implements a simple multi-layer preceptron with one hidden layer."""
+
+    def __init__(self, input_size):
+        super(MultiLayerPreceptron, self).__init__()
+        self.fc1 = torch.nn.Linear(input_size, 4)
+        self.relu = torch.nn.ReLU()
+        self.fc2 = torch.nn.Linear(4, 1)
+
+    def forward(self, x):  # pylint: disable=arguments-differ
+        output = self.fc1(x)
+        output = self.relu1(output)
+        output = self.fc2(output)
+        return torch.sigmoid(output)
+
+
+class BottleneckMultiLayerPreceptron(torch.nn.Module):
+    """Implements a multi-layer preceptron with a bottleneck shape."""
 
     def __init__(self, input_size):
         super(MultiLayerPreceptron, self).__init__()
@@ -27,7 +54,7 @@ class MultiLayerPreceptron(torch.nn.Module):
         self.relu3 = torch.nn.ReLU()
         self.fc4 = torch.nn.Linear(32, 1)
 
-    def forward(self, x):
+    def forward(self, x):  # pylint: disable=arguments-differ
         output = self.fc1(x)
         output = self.relu1(output)
         output = self.fc2(output)
