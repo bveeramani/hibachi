@@ -34,7 +34,10 @@ class OteyP450(Dataset):
         label = torch.tensor(int(label))
         label = label.type(torch.FloatTensor)
 
-        return self.transform(features, label)
+        if self.transform:
+            features, label = self.transform(features, label)
+
+        return features, label
 
     def __len__(self):
         return len(self.lines)

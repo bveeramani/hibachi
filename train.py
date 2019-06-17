@@ -1,7 +1,7 @@
 """Implements functions for training a model.
 
 usage: train.py [-h] [--test TEST_DATASET] [--batches BATCH_SIZE]
-                [--epochs NUM_EPOCHS] [--disable-cuda] [-s]
+                [--epochs NUM_EPOCHS] [--save filename] [--disable-cuda]
                 train
 
 Train model
@@ -14,8 +14,8 @@ optional arguments:
   --test TEST_DATASET   path to testing dataset
   --batches BATCH_SIZE  number of samples to propogate (default: 64)
   --epochs NUM_EPOCHS   number of passes through dataset (default: 32)
+  --save filename       save trained model (default "model.py")
   --disable-cuda        disable CUDA support
-  -s, --save            save trained model
 """
 import argparse
 import datetime
@@ -31,6 +31,7 @@ from models import LogisticRegressionModel
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_EPOCH_SIZE = 64
 DEFAULT_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+DEFAULT_SAVE_FILENAME = "model.pt"
 
 ModelType = LogisticRegressionModel
 MODEL_ARGS = [8]
@@ -57,15 +58,15 @@ def main():
                         dest='num_epochs',
                         default=DEFAULT_EPOCH_SIZE,
                         help='number of passes through dataset (default: 32)')
+    parser.add_argument('--save',
+                        dest='save_filename',
+                        metavar='filename',
+                        default=DEFAULT_SAVE_FILENAME,
+                        help='save trained model (default "model.py")')
     parser.add_argument('--disable-cuda',
                         dest='cuda_disabled',
                         action='store_true',
                         help='disable CUDA support')
-    parser.add_argument('-s',
-                        '--save',
-                        dest='save_model',
-                        action='store_true',
-                        help='save trained model')
 
 
     args = parser.parse_args()
@@ -81,13 +82,18 @@ def main():
 
     model = train(model,
                   train_dataset,
-                  test_dataset=test_dataset,
                   batch_size=args.batch_size,
                   num_epochs=args.num_epochs,
                   device=device)
 
-    if args.save_model:
-        save_model(model, batch_size=args.batch_size, num_epochs=args.num_epochs)
+    if args.test_dataset:
+        test(model,
+             test_datasetdataset,
+             batch_size=args.batch_siz * 2,
+             device=device)
+
+    if args.save_filename:
+        save(model, save_filename)
 
     return 0
 
@@ -95,20 +101,16 @@ def main():
 #pylint: disable=too-many-arguments, too-many-locals
 def train(model,
           train_dataset,
-          test_dataset=None,
           batch_size=DEFAULT_BATCH_SIZE,
           num_epochs=DEFAULT_EPOCH_SIZE,
           loss_func=nn.BCELoss(),
           device=DEFAULT_DEVICE):
     """Trains the specified model.
 
-    If a test dataset is supplied, then this function will propogate over
-    the test dataset every epoch to check the model accuracy.
-
     The specified model will always be trained using the SGD optimizer.
     """
 
-    def debug_train(train_dataset, test_dataset, batch_size, num_epochs, device):
+    def debug_train(train_dataset, batch_size, num_epochs, device):
         """Prints information about the training hyperparameters."""
         assert train_dataset, "Expected non-empty dataset."
 
@@ -124,8 +126,6 @@ def train(model,
         features, label = train_dataset[0]
         print("INPUT_SHAPE=", features.shape, sep="")
         print("LABEL_SHAPE=", label.shape, sep="")
-        if test_dataset:
-            print("TEST_DATASET_SIZE=%d" % len(test_dataset))
         print("DATASET_SIZE=%d" % len(train_dataset), end="\n\n")
 
     dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
@@ -151,9 +151,6 @@ def train(model,
             loss.backward()
             optimizer.step()
 
-        if test_dataset:
-            test(model, test_dataset, device=device, batch_size=batch_size * 2)
-
     return model
 
 
@@ -173,6 +170,26 @@ def test(model,
         """
         print("LOSS\tACCURACY")
         print("%.4f\t%.4f" % (loss.item(), accuracy), end="\n\n")
+
+    def average_accuracy(predictions, labels):
+        """Calculates the average prediction accuracy.
+
+        N is the number of predictions.
+
+        Arguments:
+            predictions: A tensor of shape N
+            labels: A scalar
+
+        Returns:
+            The average prediction accuracy.
+        """
+        num_correct = 0
+
+        for prediction, label in zip(predictions, labels):
+            if prediction > 0.5 and label == 1 or prediction <= 0.5 and label == 0:
+                num_correct += 1
+
+        return num_correct / len(predictions)
 
     dataloader = DataLoader(dataset, batch_size)
     batch_accuracies = []
@@ -194,46 +211,13 @@ def test(model,
     debug_test(total_loss, average_batch_accuracy)
 
 
-def average_accuracy(predictions, labels):
-    """Calculates the average prediction accuracy.
-
-    N is the number of predictions.
+def save(model, filename):
+    """Saves a model's state dictionary to a file.
 
     Arguments:
-        predictions: A tensor of shape N
-        labels: A scalar
-
-    Returns:
-        The average prediction accuracy.
+        model (nn.Module): The PyTorch model to save.
+        filename (string): Desired model filename.
     """
-    num_correct = 0
-
-    for prediction, label in zip(predictions, labels):
-        if prediction > 0.5 and label == 1 or prediction <= 0.5 and label == 0:
-            num_correct += 1
-
-    return num_correct / len(predictions)
-
-
-def save_model(model, batch_size, num_epochs):
-    """Saves a model's state dictionary to a .pt file
-
-    An example of a file that might be produced by this function
-    is 6132234.b64.e32.pt. The first part of the filename indicates the month,
-    day, hour, and minute at which the model was saved. The second part
-    indicates the batch size, and the third part indicates the number of epochs.
-
-    Arguments:
-        model: An nn.Module object
-        batch_size: An integer representing how many batches the model was
-            trained on
-        num_epochs: An integer representing how many epochs the model was
-            trained over
-    """
-    end_time = datetime.datetime.now()
-    filename = "%s%s%s%s.b%de%d.pt" % (end_time.month, end_time.day,
-                                       end_time.hour, end_time.minute,
-                                       batch_size, num_epochs)
     print("Saving model to %s" % filename)
     torch.save(model.module.state_dict(), filename)
 

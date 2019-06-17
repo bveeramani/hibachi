@@ -18,15 +18,17 @@ class SupportVectorMachine(torch.nn.Module):
     """Implements a basic linear support vector machine."""
 
     def __init__(self, input_size):
-        super(SupportVectorMachine, self).__init__()
-        self.linear = nn.Linear(input_size, 1)
+        raise NotImplementedError()
 
     def forward(self, x):  # pylint: disable=arguments-differ
-        return self.linear(x)
+        raise NotImplementedError()
 
 
-class SimpleMultiLayerPreceptron(torch.nn.Module):
-    """Implements a simple multi-layer preceptron with one hidden layer."""
+class MultiLayerPreceptron(torch.nn.Module):
+    """Implements a simple multi-layer preceptron with one hidden layer.
+
+    The hidden layer contains four neurons.
+    """
 
     def __init__(self, input_size):
         super(MultiLayerPreceptron, self).__init__()
@@ -42,10 +44,13 @@ class SimpleMultiLayerPreceptron(torch.nn.Module):
 
 
 class BottleneckMultiLayerPreceptron(torch.nn.Module):
-    """Implements a multi-layer preceptron with a bottleneck shape."""
+    """Implements a multi-layer preceptron with a bottleneck shape.
+
+    The architecture of the model is: input_size => 32 => 64 => 32 => 1.
+    """
 
     def __init__(self, input_size):
-        super(MultiLayerPreceptron, self).__init__()
+        super(BottleneckMultiLayerPreceptron, self).__init__()
         self.fc1 = torch.nn.Linear(input_size, 32)
         self.relu1 = torch.nn.ReLU()
         self.fc2 = torch.nn.Linear(32, 64)
