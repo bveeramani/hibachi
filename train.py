@@ -1,7 +1,7 @@
 """Implements functions for training a model.
 
 usage: train.py [-h] [--test TEST_DATASET] [--batches BATCH_SIZE]
-                [--epochs NUM_EPOCHS] [--disable-cuda]
+                [--epochs NUM_EPOCHS] [--disable-cuda] [-s]
                 train
 
 Train model
@@ -15,6 +15,7 @@ optional arguments:
   --batches BATCH_SIZE  number of samples to propogate (default: 64)
   --epochs NUM_EPOCHS   number of passes through dataset (default: 32)
   --disable-cuda        disable CUDA support
+  -s, --save            save trained model
 """
 import argparse
 import datetime
@@ -25,13 +26,13 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from datasets import OteyP450
-from models import *
+from models import LogisticRegressionModel
 
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_EPOCH_SIZE = 64
 DEFAULT_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-ModelType = SupportVectorMachine
+ModelType = LogisticRegressionModel
 MODEL_ARGS = [8]
 MODEL_KWARGS = {}
 
@@ -60,7 +61,8 @@ def main():
                         dest='cuda_disabled',
                         action='store_true',
                         help='disable CUDA support')
-    parser.add_argument('--save',
+    parser.add_argument('-s',
+                        '--save',
                         dest='save_model',
                         action='store_true',
                         help='save trained model')
@@ -144,12 +146,7 @@ def train(model,
             labels = labels.to(device)
 
             predictions = model(features)
-            for i in range(len(labels)):
-                if labels[i] == 0:
-                    labels[i] = -1
-
             loss = loss_func(predictions, labels)
-            # debug_batch(batch_number, epoch, loss)
 
             loss.backward()
             optimizer.step()

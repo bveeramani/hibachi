@@ -3,11 +3,11 @@ import torch
 import torch.nn as nn
 
 
-class LogisticBinaryClassifier(nn.Module):
+class LogisticRegressionModel(nn.Module):
     """Implements a simple logistic regression model"""
 
     def __init__(self, in_features):
-        super(LogisticRegression, self).__init__()
+        super(LogisticRegressionModel, self).__init__()
         self.linear = nn.Linear(in_features, 1)
 
     def forward(self, x):  # pylint: disable=arguments-differ
