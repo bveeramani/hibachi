@@ -4,11 +4,23 @@ from torch.utils.data import Dataset
 
 
 class OteyP450(Dataset):
-    """Abstraction for the Otey P450 Dataset."""
+    """Otey P450 protein dataset.
 
-    def __init__(self, filename):
+    The Otey P450 dataset is encoded in a two-column CSV file. The first column
+    contains an eight-digit number where each digit is either a 1, 2, or 3.
+    The second column containers a label, either 0 or 1.
+
+    Arguments:
+        filename (string): Path to a CSV file containing the data.
+        transform (callable, optional): A function that takes in a list of eight
+            predictors and a scalar label and returns a transformed version of
+            each.
+    """
+
+    def __init__(self, filename, transform=None):
         with open(filename) as file:
             self.lines = file.readlines()
+        self.transform = transform
 
     def __getitem__(self, index):
         line = self.lines[index]
@@ -22,7 +34,7 @@ class OteyP450(Dataset):
         label = torch.tensor(int(label))
         label = label.type(torch.FloatTensor)
 
-        return features, label
+        return self.transform(features, label)
 
     def __len__(self):
         return len(self.lines)
