@@ -20,10 +20,8 @@ optional arguments:
 import argparse
 import datetime
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from datasets import OteyP450
@@ -32,7 +30,7 @@ from models import LogisticRegressionModel
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_EPOCH_SIZE = 64
 DEFAULT_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-DEFAULT_CLASSIFIER = lambda prediction : 1 if prediction > 0.5 else 0
+DEFAULT_CLASSIFIER = lambda prediction: 1 if prediction > 0.5 else 0
 
 ModelType = LogisticRegressionModel
 MODEL_ARGS = [OteyP450.NUM_FEATURES]
@@ -76,9 +74,11 @@ def main():
     else:
         device = "cpu"
 
-    transform = lambda features, label : (features, torch.tensor(1)) if label else (features, torch.tensor(-1))
+    transform = lambda features, label: (features, torch.tensor(
+        1)) if label else (features, torch.tensor(-1))
     train_dataset = OteyP450(args.train_dataset, transform=transform)
-    test_dataset = OteyP450(args.test_dataset, transform=transform) if args.test_dataset else None
+    test_dataset = OteyP450(args.test_dataset,
+                            transform=transform) if args.test_dataset else None
 
     model = ModelType(*MODEL_ARGS, **MODEL_KWARGS)
 
@@ -89,10 +89,7 @@ def main():
                   device=device)
 
     if args.test_dataset:
-        test(model,
-             test_dataset,
-             batch_size=args.batch_size * 2,
-             device=device)
+        test(model, test_dataset, batch_size=args.batch_size * 2, device=device)
 
     if args.save_filename:
         save(model, args.save_filename)
@@ -138,7 +135,6 @@ def train(model,
         print("LABEL_SHAPE=", label.shape, sep="")
         print("DATASET_SIZE=%d" % len(train_dataset), end="\n\n")
 
-
     dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
     debug_train(train_dataset, batch_size, num_epochs, device)
 
@@ -149,7 +145,7 @@ def train(model,
 
     for epoch in range(num_epochs):
         model.train()
-        for batch_number, (features, labels) in enumerate(dataloader):
+        for features labels in dataloader:
             model.zero_grad()
 
             features = features.to(device)
@@ -181,6 +177,7 @@ def test(model,
         batch_size (int, optional): The desired test batch size.
         device (str): The device on which to run the test.
     """
+
     def average_accuracy(predictions, labels, classifier):
         """Calculates the average classification accuracy.
 
@@ -216,7 +213,6 @@ def test(model,
 
     model.eval()
     with torch.no_grad():
-        total_loss = 0
         for features, labels in dataloader:
             features = features.to(device)
             labels = labels.to(device)
