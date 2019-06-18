@@ -14,17 +14,7 @@ class LogisticRegressionModel(nn.Module):
         return torch.sigmoid(self.linear(x))
 
 
-class SupportVectorMachine(torch.nn.Module):
-    """Implements a basic linear support vector machine."""
-
-    def __init__(self, input_size):
-        raise NotImplementedError()
-
-    def forward(self, x):  # pylint: disable=arguments-differ
-        raise NotImplementedError()
-
-
-class MultiLayerPreceptron(torch.nn.Module):
+class MultiLayerPreceptron(nn.Module):
     """Implements a simple multi-layer preceptron with one hidden layer.
 
     The hidden layer contains four neurons.
@@ -43,7 +33,7 @@ class MultiLayerPreceptron(torch.nn.Module):
         return torch.sigmoid(output)
 
 
-class BottleneckMultiLayerPreceptron(torch.nn.Module):
+class BottleneckMultiLayerPreceptron(nn.Module):
     """Implements a multi-layer preceptron with a bottleneck shape.
 
     The architecture of the model is: input_size => 32 => 64 => 32 => 1.
