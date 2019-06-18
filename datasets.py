@@ -17,6 +17,8 @@ class OteyP450(Dataset):
             each.
     """
 
+    NUM_FEATURES = 8
+
     def __init__(self, filename, transform=None):
         with open(filename) as file:
             self.lines = file.readlines()

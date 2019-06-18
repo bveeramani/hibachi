@@ -74,7 +74,7 @@ def LimeExplainer(model, dataset, kwargs):
             model.eval()
             with torch.no_grad():
                 input = torch.tensor(input).type(torch.FloatTensor)
-                predictions = model(input)
+                predictions = model(input).cpu()
                 probabilities = np.array(predictions).squeeze()
                 complementary_probabilities = 1 - probabilities
                 columns = complementary_probabilities, probabilities
@@ -90,7 +90,7 @@ def LimeExplainer(model, dataset, kwargs):
 
     def explain(sample):
         """Plots Lime attribution for a feature-label pair."""
-        features = sample[0]
+        features = sample[0].cpu()
         features = np.array(features)
 
         explanation = explainer.explain_instance(features, model)
@@ -105,7 +105,7 @@ def LimeExplainer(model, dataset, kwargs):
 def OteyP450LimeExplainer(model, dataset):
     """Returns an attribution method for the OteyP450 dataset that uses the Lime algorithm."""
     kwargs = {}
-    kwargs["feature_names"] = (i + 1 for i in range(8))
+    kwargs["feature_names"] = (i for i in range(8))
     kwargs["class_names"] = ("non-functional", "functional")
     kwargs["categorical_names"] = {
         i: {j + 1: ascii_uppercase[j] for j in range(3)} for i in range(8)

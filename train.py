@@ -27,16 +27,15 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from datasets import OteyP450
-from models import SupportVectorMachine
+from models import LogisticRegressionModel
 
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_EPOCH_SIZE = 64
 DEFAULT_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-DEFAULT_SAVE_FILENAME = "model.pt"
+DEFAULT_CLASSIFIER = lambda prediction : 1 if prediction > 0.5 else 0
 
-ModelType = SupportVectorMachine
-transform = lambda features, label : (features, torch.tensor(1)) if label else (features, torch.tensor(-1))
-MODEL_ARGS = [OteyP450("OteyP450/processed/train.csv", transform=transform)]
+ModelType = LogisticRegressionModel
+MODEL_ARGS = [OteyP450.NUM_FEATURES]
 MODEL_KWARGS = {}
 
 
@@ -82,22 +81,16 @@ def main():
     test_dataset = OteyP450(args.test_dataset, transform=transform) if args.test_dataset else None
 
     model = ModelType(*MODEL_ARGS, **MODEL_KWARGS)
-    if torch.cuda.device_count() > 1 and not args.cuda_disabled:
-        model = nn.DataParallel(model)
-    model = model.to(device)
 
     model = train(model,
                   train_dataset,
                   batch_size=args.batch_size,
                   num_epochs=args.num_epochs,
-                  loss_func=torch.nn.HingeEmbeddingLoss(),
-                  device=device,
-                  test_dataset=test_dataset)
+                  device=device)
 
     if args.test_dataset:
         test(model,
              test_dataset,
-             loss_func=torch.nn.HingeEmbeddingLoss(),
              batch_size=args.batch_size * 2,
              device=device)
 
@@ -113,11 +106,18 @@ def train(model,
           batch_size=DEFAULT_BATCH_SIZE,
           num_epochs=DEFAULT_EPOCH_SIZE,
           loss_func=nn.BCELoss(),
-          device=DEFAULT_DEVICE,
-          test_dataset=None):
+          device=DEFAULT_DEVICE):
     """Trains the specified model.
 
-    The specified model will always be trained using the SGD optimizer.
+    The model is trained using the SGD optimizer.
+
+    Arguments:
+        model (nn.Module): A PyTorch model
+        dataset (torch.utils.data.Dataset): The dataset to train on
+        batch_size (int, optional): The training batch size.
+        num_epochs (int, optional): The number of epochs to propogate over
+        loss_func (callable, optional): The cost function.
+        device (str): The device on which to run the test.
     """
 
     def debug_train(train_dataset, batch_size, num_epochs, device):
@@ -143,6 +143,9 @@ def train(model,
     debug_train(train_dataset, batch_size, num_epochs, device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    if torch.cuda.device_count() > 1 and not device == "cpu":
+        model = nn.DataParallel(model)
+    model = model.to(device)
 
     for epoch in range(num_epochs):
         model.train()
@@ -153,53 +156,60 @@ def train(model,
             labels = labels.to(device)
 
             predictions = model(features)
+            # torch.Size([N, 1]) => torch.Size([N])
+            predictions = torch.squeeze(predictions)
             loss = loss_func(predictions, labels)
 
-            x = loss.backward()
-            print(x)
+            loss.backward()
             optimizer.step()
 
     return model
 
 
-def average_accuracy(predictions, labels):
-    """Calculates the average prediction accuracy.
-
-    N is the number of predictions.
-
-    Arguments:
-        predictions: A tensor of shape N
-        labels: A scalar
-
-    Returns:
-        The average prediction accuracy.
-    """
-    num_correct = 0
-
-    for prediction, label in zip(predictions, labels):
-        if prediction > 0 and label == 1 or prediction <= 0 and label == -1:
-            num_correct += 1
-
-    return num_correct / len(predictions)
-
-
 def test(model,
          dataset,
+         classifier=DEFAULT_CLASSIFIER,
          batch_size=DEFAULT_BATCH_SIZE * 2,
-         accuracy_func=average_accuracy,
-         loss_func=nn.BCELoss(),
          device=DEFAULT_DEVICE):
-    """Tests a model over the specified dataset."""
+    """Tests a model on the specified dataset.
 
-    def debug_test(loss, accuracy):
+    Arguments:
+        model (nn.Module): A PyTorch model
+        dataset (torch.utils.data.Dataset): The dataset to test on
+        classifier (callable, optional): A function that takes a prediction
+            returned by the model and returns the associated class.
+        batch_size (int, optional): The desired test batch size.
+        device (str): The device on which to run the test.
+    """
+    def average_accuracy(predictions, labels, classifier):
+        """Calculates the average classification accuracy.
+
+        N is the number of predictions.
+
+        Arguments:
+            predictions: A 1-dimensional length-N tensor.
+            labels: A 1-dimensional length-N tensor.
+            classifier (callable, optional): A function that takes a prediction
+                returned by the model and returns the associated class.
+
+        Returns:
+            The average prediction accuracy.
+        """
+        num_correct = 0
+
+        for prediction, label in zip(predictions, labels):
+            if classifier(prediction) == label:
+                num_correct += 1
+
+        return num_correct / len(predictions)
+
+    def debug_test(accuracy):
         """Prints results from testing a model over a dataset.
 
         Arguments:
-            loss: A scalar tensor
-            accuracy: A floating-point number between 0 and 1.
+            accuracy (float): A number between 0 and 1.
         """
-        print("LOSS\tACCURACY")
-        print("%.4f\t%.4f" % (loss.item(), accuracy), end="\n\n")
+        print("ACCURACY\n%.4f" % accuracy, end="\n\n")
 
     dataloader = DataLoader(dataset, batch_size)
     batch_accuracies = []
@@ -212,14 +222,12 @@ def test(model,
             labels = labels.to(device)
 
             predictions = model(features)
-            print(predictions, labels)
-            batch_accuracy = accuracy_func(predictions, labels)
+            batch_accuracy = average_accuracy(predictions, labels, classifier)
 
-            total_loss += loss_func(predictions, labels)
             batch_accuracies.append(batch_accuracy)
 
     average_batch_accuracy = sum(batch_accuracies) / len(batch_accuracies)
-    debug_test(total_loss, average_batch_accuracy)
+    debug_test(average_batch_accuracy)
 
 
 def save(model, filename):
