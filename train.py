@@ -93,13 +93,14 @@ def main():
     return 0
 
 
-#pylint: disable=too-many-arguments, too-many-locals
+# pylint: disable=too-many-arguments, too-many-locals
 def train(model,
           train_dataset,
           batch_size=DEFAULT_BATCH_SIZE,
           num_epochs=DEFAULT_EPOCH_SIZE,
           loss_func=nn.BCELoss(),
-          device=DEFAULT_DEVICE):
+          device=DEFAULT_DEVICE,
+          quiet=False):
     """Trains the specified model.
 
     The model is trained using the SGD optimizer.
@@ -111,6 +112,8 @@ def train(model,
         num_epochs (int, optional): The number of epochs to propogate over
         loss_func (callable, optional): The cost function.
         device (str): The device on which to run the test.
+        quiet (bool, optional): If true, then this function will not print
+            status messages to STDOUT.
     """
 
     def print_train_settings(train_dataset, batch_size, num_epochs, device):
@@ -137,7 +140,8 @@ def train(model,
         print("%d\t%d\t%.4f" % (epoch, batch, loss.item()))
 
     dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
-    print_train_settings(train_dataset, batch_size, num_epochs, device)
+    if not quiet:
+        print_train_settings(train_dataset, batch_size, num_epochs, device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     if torch.cuda.device_count() > 1 and not device == "cpu":
@@ -156,7 +160,9 @@ def train(model,
             # torch.Size([N, 1]) => torch.Size([N])
             predictions = torch.squeeze(predictions)
             loss = loss_func(predictions, labels)
-            print_batch_results(epoch, batch, loss)
+
+            if not quiet:
+                print_batch_results(epoch, batch, loss)
 
             loss.backward()
             optimizer.step()
@@ -167,7 +173,8 @@ def train(model,
 def test(model,
          dataset,
          batch_size=DEFAULT_BATCH_SIZE * 2,
-         device=DEFAULT_DEVICE):
+         device=DEFAULT_DEVICE,
+         quiet=False):
     """Tests a model on the specified dataset.
 
     Arguments:
@@ -175,6 +182,8 @@ def test(model,
         dataset (torch.utils.data.Dataset): The dataset to test on
         batch_size (int, optional): The desired test batch size.
         device (str): The device on which to run the test.
+        quiet (bool, optional): If true, then this function will not print
+            status messages to STDOUT.
     """
 
     def average_accuracy(predictions, labels):
@@ -203,7 +212,6 @@ def test(model,
         Arguments:
             accuracy (float): A number between 0 and 1.
         """
-        current_time = datetime.datetime.now()
         print("ACCURACY\n%.4f" % accuracy, end="\n\n")
 
     dataloader = DataLoader(dataset, batch_size)
@@ -221,7 +229,11 @@ def test(model,
             batch_accuracies.append(batch_accuracy)
 
     average_batch_accuracy = sum(batch_accuracies) / len(batch_accuracies)
-    print_test_results(average_batch_accuracy)
+
+    if not quiet:
+        print_test_results(average_batch_accuracy)
+
+    return average_batch_accuracy
 
 
 def save(model, filename):
