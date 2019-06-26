@@ -1,10 +1,10 @@
-"""Implements various binary classification models."""
+"""Implements binary classification models."""
 import torch
 import torch.nn as nn
 
 
 class LogisticRegressionModel(nn.Module):
-    """Implements a simple logistic regression model"""
+    """A simple logistic regression model"""
 
     def __init__(self, in_features):
         super(LogisticRegressionModel, self).__init__()
