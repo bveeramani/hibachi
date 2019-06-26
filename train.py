@@ -150,13 +150,12 @@ def train(model,
 
     for epoch in range(num_epochs):
         model.train()
-        for batch, (obvservations, labels) in enumerate(dataloader):
+        for batch, (examples, labels) in enumerate(dataloader):
             model.zero_grad()
 
-            obvservations = obvservations.to(obvservations)
+            examples = examples.to(examples)
             labels = labels.to(device)
-
-            predictions = model(obvservations)
+            predictions = model(examples)
             # torch.Size([N, 1]) => torch.Size([N])
             predictions = torch.squeeze(predictions)
             loss = loss_func(predictions, labels)

@@ -2,7 +2,7 @@
 import unittest
 
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, TensorDataset
 
 from evaluations import spearman_coefficient, tanimoto_distance, remove_unselected_features, create_folds
 
@@ -22,38 +22,44 @@ class SimilarityMeasureTest(unittest.TestCase):
 
 class UtilityFunctionTest(unittest.TestCase):
 
+    #TODO: Rewrite me
     def test_remove_unselected_features(self):
-        dataset = DummyDataset(2)
-        dataset = remove_unselected_features(dataset, [1])
-        expected = [(torch.tensor([0]), torch.tensor(0)),
-                    (torch.tensor([0]), torch.tensor(1)),
-                    (torch.tensor([1]), torch.tensor(1)),
-                    (torch.tensor([1]), torch.tensor(2))]
-        self.assertEqual(dataset, expected)
+        dataset = DummyDataset()
+        dataset = remove_unselected_features(dataset, [1, 0])
+
+        x = torch.tensor([[0], [0], [1], [1]])
+        y = torch.tensor([0, 1, 0, 1])
+        reference_dataset = TensorDataset(x, y)
+
+        actual = [(a, b) for a, b in dataset]
+        expected = [(a, b) for a, b in reference_dataset]
+
+        self.assertEqual(actual, expected)
 
     def test_create_folds(self):
-        dataset = DummyDataset(3)
-        folds = create_folds(dataset, 4)
-        self.assertEqual(len(folds), 4)
-        for i in range(3):
-            for j in range(3):
-                self.assertEqual(len(folds[i][0]), 7)
-                self.assertEqual(len(folds[i][1]), 2)
-        self.assertEqual(len(folds[3][0]), 6)
-        self.assertEqual(len(folds[3][1]), 3)
+        dataset = DummyDataset()
+        folds = create_folds(dataset, 3)
+
+        self.assertEqual(len(folds), 3)
+
+        # Three folds of size 1 x 1 x 2
+        for i in range(2):
+            self.assertEqual(len(folds[i][0]), 3)
+            self.assertEqual(len(folds[i][1]), 1)
+
+        self.assertEqual(len(folds[2][0]), 2)
+        self.assertEqual(len(folds[2][1]), 2)
 
 
 class DummyDataset(Dataset):
 
-    def __init__(self, size):
-        self.domain = [(x, y) for x in range(size) for y in range(size)]
-        f = lambda x, y: x + y
-        self.image = [f(x, y) for x, y in self.domain]
+    def __init__(self):
+        # f(x, y) = y over a 2 x 2 region
+        self.x = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]])
+        self.y = torch.tensor([0, 1, 0, 1])
 
     def __getitem__(self, index):
-        observation = torch.tensor(self.domain[index])
-        response = torch.tensor(self.image[index])
-        return observation, response
+        return self.x[index], self.y[index]
 
     def __len__(self):
-        return len(self.domain)
+        return 4

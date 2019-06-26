@@ -2,7 +2,7 @@
 from itertools import combinations
 
 import torch
-from torch.utils.data import random_split, ConcatDataset
+from torch.utils.data import random_split, ConcatDataset, TensorDataset
 
 from train import train, test
 from models import LogisticRegressionModel
@@ -17,7 +17,7 @@ def spearman_coefficient(r, r_prime):
 
     See https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient.
 
-    A ranking is a list r = (r_1, r_2, ..., r_m) where 1 <= r_i <= m for all i
+    A ranking is a list r = (r_0, r_1, ..., r_m-1) where 1 <= r_i <= m for all i
     and each element of {1, ..., m} appears exactly once in r.
 
     Arguments:
@@ -66,7 +66,6 @@ def evaluate_accuracy(selected_features, dataset, num_folds=10):
     This function averages accuracies from k-fold cross-validation.
 
     Arguments:
-        selected_features (list): A one-indexed list of selected features.
         dataset (torch.utils.data.Dataset): The training dataset.
         num_folds (int, optional): The number of folds to cross-validate on.
 
@@ -78,8 +77,7 @@ def evaluate_accuracy(selected_features, dataset, num_folds=10):
 
     accuracies = []
     for training_fold, testing_fold in folds:
-        model = LogisticRegressionModel(len(selected_features))
-
+        model = LogisticRegressionModel(sum(selected_features))
         model = train(model, training_fold, quiet=True)
         accuracy = test(model, testing_fold, quiet=True)
 
@@ -131,30 +129,29 @@ def evaluate_stability(selection_algorithm,
 # -----------------------------------------------------------------------------
 # ---- Utility functions ------------------------------------------------------
 # -----------------------------------------------------------------------------
-def remove_unselected_features(dataset, selected_features):
+def remove_unselected_features(dataset, selection):
     """Returns a copy of the dataset without the selected features.
 
     Arguments:
         dataset (torch.utils.data.Dataset): The dataset to remove features from.
-        selected_features (list): A one-indexed list of feature positions.
 
     Returns:
         A copy of the dataset with the selected features removed.
     """
     assert dataset, "dataset cannot be empty"
-    num_features = len(dataset[0])
-
-    def transform(observation, label):
+    num_features = len(dataset[0][0])
+    def transform(observation):
         observation = [
             observation[i]
             for i in range(num_features)
-            if i + 1 in selected_features
+            if selection[i]
         ]
         observation = torch.tensor(observation)
-        return observation, label
+        return observation
 
-    dataset = [transform(observation, label) for observation, label in dataset]
-    return dataset
+    observations = torch.stack([transform(observation) for observation, label in dataset])
+    labels = torch.tensor([label for observation, label in dataset])
+    return TensorDataset(observations, labels)
 
 
 def create_folds(dataset, num_subsamples):

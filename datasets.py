@@ -50,7 +50,6 @@ class OteyP450(Dataset):
 
         obvservation = obvservation.type(torch.FloatTensor)
         label = label.type(torch.FloatTensor)
-
         return obvservation, label
 
     def __len__(self):

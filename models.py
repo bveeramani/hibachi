@@ -8,6 +8,7 @@ class LogisticRegressionModel(nn.Module):
 
     def __init__(self, in_features):
         super(LogisticRegressionModel, self).__init__()
+        self.ree = in_features
         self.linear = nn.Linear(in_features, 1)
 
     def forward(self, x):  # pylint: disable=arguments-differ
