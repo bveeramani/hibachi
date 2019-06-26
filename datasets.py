@@ -9,13 +9,15 @@ class OteyP450(Dataset):
 
     The Otey P450 dataset is encoded in a two-column CSV file. The first column
     contains an eight-digit number where each digit is either a 1, 2, or 3.
-    The second column containers a label, either 0 or 1.
+    The second column containers a binary label.
+
+    Features and labels are converted to torch.FloatTensor after transformations
+    have beem applied (if any).
 
     Arguments:
         filename (string): Path to a CSV file containing the data.
-        transform (callable, optional): A function that takes in a list of eight
-            predictors and a scalar label and returns a transformed version of
-            each.
+        transform (callable, optional): A function that takes in a list of 24
+            bits and a binary label, and returns a transformed version of each.
     """
 
     NUM_FEATURES = 24
@@ -28,22 +30,28 @@ class OteyP450(Dataset):
     def __getitem__(self, index):
         line = self.lines[index]
 
-        features = line.split(",")[0]
-        # We're substracting by 1 so that values lay in [0, 2] instead of [1, 3]
-        features = [int(feature) - 1 for feature in features]
-        features = torch.tensor(features)
-        features = [F.one_hot(feature, num_classes=3) for feature in features]
-        features = torch.cat(features)
-        features = features.type(torch.FloatTensor)
+        obvservation = line.split(",")[0]
+        # We're substracting by 1 so that values lay in {0, 1, 2} instead of {1, 2, 3}
+        obvservation = [
+            int(categorical_code) - 1 for categorical_code in obvservation
+        ]
+        obvservation = torch.tensor(obvservation)
+        obvservation = [
+            F.one_hot(categorical_code, num_classes=3)
+            for categorical_code in obvservation
+        ]
+        obvservation = torch.cat(obvservation)
 
         label = line.split(",")[1]
         label = torch.tensor(int(label))
-        label = label.type(torch.FloatTensor)
 
         if self.transform:
-            features, label = self.transform(features, label)
+            obvservation, label = self.transform(obvservation, label)
 
-        return features, label
+        obvservation = obvservation.type(torch.FloatTensor)
+        label = label.type(torch.FloatTensor)
+
+        return obvservation, label
 
     def __len__(self):
         return len(self.lines)

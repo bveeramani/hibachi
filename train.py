@@ -30,7 +30,6 @@ from models import LogisticRegressionModel
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_EPOCH_SIZE = 64
 DEFAULT_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-DEFAULT_CLASSIFIER = lambda prediction: 1 if prediction > 0.5 else 0
 
 ModelType = LogisticRegressionModel
 MODEL_ARGS = [OteyP450.NUM_FEATURES]
@@ -147,13 +146,13 @@ def train(model,
 
     for epoch in range(num_epochs):
         model.train()
-        for batch, (features, labels) in enumerate(dataloader):
+        for batch, (obvservations, labels) in enumerate(dataloader):
             model.zero_grad()
 
-            features = features.to(device)
+            obvservations = obvservations.to(obvservations)
             labels = labels.to(device)
 
-            predictions = model(features)
+            predictions = model(obvservations)
             # torch.Size([N, 1]) => torch.Size([N])
             predictions = torch.squeeze(predictions)
             loss = loss_func(predictions, labels)
@@ -212,11 +211,11 @@ def test(model,
 
     model.eval()
     with torch.no_grad():
-        for features, labels in dataloader:
-            features = features.to(device)
+        for obvservations, labels in dataloader:
+            obvservations = obvservations.to(device)
             labels = labels.to(device)
 
-            predictions = model(features)
+            predictions = model(obvservations)
             batch_accuracy = average_accuracy(predictions, labels)
 
             batch_accuracies.append(batch_accuracy)
