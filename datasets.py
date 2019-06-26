@@ -1,6 +1,7 @@
 """Implements classes for preprocessing and loading datasets."""
 import torch
 from torch.utils.data import Dataset
+import torch.nn.functional as F
 
 
 class OteyP450(Dataset):
@@ -17,7 +18,7 @@ class OteyP450(Dataset):
             each.
     """
 
-    NUM_FEATURES = 8
+    NUM_FEATURES = 24
 
     def __init__(self, filename, transform=None):
         with open(filename) as file:
@@ -28,8 +29,11 @@ class OteyP450(Dataset):
         line = self.lines[index]
 
         features = line.split(",")[0]
-        features = [int(feature) for feature in features]
+        # We're substracting by 1 so that values lay in [0, 2] instead of [1, 3]
+        features = [int(feature) - 1 for feature in features]
         features = torch.tensor(features)
+        features = [F.one_hot(feature, num_classes=3) for feature in features]
+        features = torch.cat(features)
         features = features.type(torch.FloatTensor)
 
         label = line.split(",")[1]

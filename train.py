@@ -12,8 +12,8 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --test TEST_DATASET   path to testing dataset
-  --batches BATCH_SIZE  number of samples to propogate (default: 64)
-  --epochs NUM_EPOCHS   number of passes through dataset (default: 32)
+  --batches BATCH_SIZE  number of samples to propogate (default: 32)
+  --epochs NUM_EPOCHS   number of passes through dataset (default: 64)
   --save FILENAME       save trained model (default "model.py")
   --disable-cuda        disable CUDA support
 """
@@ -74,11 +74,8 @@ def main():
     else:
         device = "cpu"
 
-    transform = lambda features, label: (features, torch.tensor(
-        1)) if label else (features, torch.tensor(-1))
-    train_dataset = OteyP450(args.train_dataset, transform=transform)
-    test_dataset = OteyP450(args.test_dataset,
-                            transform=transform) if args.test_dataset else None
+    train_dataset = OteyP450(args.train_dataset)
+    test_dataset = OteyP450(args.test_dataset) if args.test_dataset else None
 
     model = ModelType(*MODEL_ARGS, **MODEL_KWARGS)
 
@@ -117,7 +114,7 @@ def train(model,
         device (str): The device on which to run the test.
     """
 
-    def debug_train(train_dataset, batch_size, num_epochs, device):
+    def print_train_settings(train_dataset, batch_size, num_epochs, device):
         """Prints information about the training hyperparameters."""
         assert train_dataset, "Expected non-empty dataset."
 
@@ -135,8 +132,13 @@ def train(model,
         print("LABEL_SHAPE=", label.shape, sep="")
         print("DATASET_SIZE=%d" % len(train_dataset), end="\n\n")
 
+    def print_batch_results(epoch, batch, loss):
+        if epoch == 0 and batch == 0:
+            print("EPOCH\tBATCH\tLOSS")
+        print("%d\t%d\t%.4f" % (epoch, batch, loss.item()))
+
     dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
-    debug_train(train_dataset, batch_size, num_epochs, device)
+    print_train_settings(train_dataset, batch_size, num_epochs, device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     if torch.cuda.device_count() > 1 and not device == "cpu":
@@ -145,7 +147,7 @@ def train(model,
 
     for epoch in range(num_epochs):
         model.train()
-        for features labels in dataloader:
+        for batch, (features, labels) in enumerate(dataloader):
             model.zero_grad()
 
             features = features.to(device)
@@ -155,6 +157,7 @@ def train(model,
             # torch.Size([N, 1]) => torch.Size([N])
             predictions = torch.squeeze(predictions)
             loss = loss_func(predictions, labels)
+            print_batch_results(epoch, batch, loss)
 
             loss.backward()
             optimizer.step()
@@ -164,7 +167,6 @@ def train(model,
 
 def test(model,
          dataset,
-         classifier=DEFAULT_CLASSIFIER,
          batch_size=DEFAULT_BATCH_SIZE * 2,
          device=DEFAULT_DEVICE):
     """Tests a model on the specified dataset.
@@ -172,13 +174,11 @@ def test(model,
     Arguments:
         model (nn.Module): A PyTorch model
         dataset (torch.utils.data.Dataset): The dataset to test on
-        classifier (callable, optional): A function that takes a prediction
-            returned by the model and returns the associated class.
         batch_size (int, optional): The desired test batch size.
         device (str): The device on which to run the test.
     """
 
-    def average_accuracy(predictions, labels, classifier):
+    def average_accuracy(predictions, labels):
         """Calculates the average classification accuracy.
 
         N is the number of predictions.
@@ -186,8 +186,6 @@ def test(model,
         Arguments:
             predictions: A 1-dimensional length-N tensor.
             labels: A 1-dimensional length-N tensor.
-            classifier (callable, optional): A function that takes a prediction
-                returned by the model and returns the associated class.
 
         Returns:
             The average prediction accuracy.
@@ -195,17 +193,18 @@ def test(model,
         num_correct = 0
 
         for prediction, label in zip(predictions, labels):
-            if classifier(prediction) == label:
+            if prediction > 0.5 and label == 1 or prediction <= 0.5 and label == 0:
                 num_correct += 1
 
         return num_correct / len(predictions)
 
-    def debug_test(accuracy):
+    def print_test_results(accuracy):
         """Prints results from testing a model over a dataset.
 
         Arguments:
             accuracy (float): A number between 0 and 1.
         """
+        current_time = datetime.datetime.now()
         print("ACCURACY\n%.4f" % accuracy, end="\n\n")
 
     dataloader = DataLoader(dataset, batch_size)
@@ -218,12 +217,12 @@ def test(model,
             labels = labels.to(device)
 
             predictions = model(features)
-            batch_accuracy = average_accuracy(predictions, labels, classifier)
+            batch_accuracy = average_accuracy(predictions, labels)
 
             batch_accuracies.append(batch_accuracy)
 
     average_batch_accuracy = sum(batch_accuracies) / len(batch_accuracies)
-    debug_test(average_batch_accuracy)
+    print_test_results(average_batch_accuracy)
 
 
 def save(model, filename):
@@ -234,7 +233,10 @@ def save(model, filename):
         filename (string): Desired model filename.
     """
     print("Saving model to %s" % filename)
-    torch.save(model.module.state_dict(), filename)
+    if hasattr(model, "module"):
+        torch.save(model.module.state_dict(), filename)
+    else:
+        torch.save(model.state_dict(), filename)
 
 
 if __name__ == "__main__":
