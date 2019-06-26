@@ -30,6 +30,9 @@ def spearman_coefficient(r, r_prime):
     assert len(r) == len(r_prime), "r and r_prime must be same length"
 
     m = len(r)
+    if m == 1:
+        return 1 if r == r_prime else 0
+
     f = lambda x, y: pow((x - y), 2) / (m * (pow(m, 2) - 1))
     return 1 - 6 * sum([f(r[i], r_prime[i]) for i in range(m)])
 
@@ -77,8 +80,8 @@ def evaluate_accuracy(selected_features, dataset, num_folds=10):
     for training_fold, testing_fold in folds:
         model = LogisticRegressionModel(len(selected_features))
 
-        model = train(model, training_fold)
-        accuracy = test(model, testing_fold)
+        model = train(model, training_fold, quiet=True)
+        accuracy = test(model, testing_fold, quiet=True)
 
         accuracies.append(accuracy)
     average_accuracy = sum(accuracies) / len(accuracies)
@@ -112,7 +115,7 @@ def evaluate_stability(selection_algorithm,
     folds = create_folds(dataset, num_folds)
 
     feature_selections = []
-    for training_fold, testing_fold in folds:
+    for fold_index, (training_fold, testing_fold) in enumerate(folds):
         selected_features = selection_algorithm(training_fold)
         feature_selections.append(selected_features)
 
