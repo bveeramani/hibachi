@@ -2,7 +2,7 @@
 from itertools import combinations
 
 import torch
-from torch.utils.data import Dataset, random_split, ConcatDataset
+from torch.utils.data import random_split, ConcatDataset
 
 from train import train, test
 from models import LogisticRegressionModel
@@ -57,6 +57,19 @@ def tanimoto_distance(s, s_prime):
 # ---- Evaluation methods -----------------------------------------------------
 # -----------------------------------------------------------------------------
 def evaluate_accuracy(selected_features, dataset, num_folds=10):
+    """Returns the accuracy from training a logistic regression model on the
+    selected features.
+
+    This function averages accuracies from k-fold cross-validation.
+
+    Arguments:
+        selected_features (list): A one-indexed list of selected features.
+        dataset (torch.utils.data.Dataset): The training dataset.
+        num_folds (int, optional): The number of folds to cross-validate on.
+
+    Returns:
+        The average prediction accuracy over the folds.
+    """
     dataset = remove_unselected_features(dataset, selected_features)
     folds = create_folds(dataset, num_folds)
 
@@ -64,7 +77,7 @@ def evaluate_accuracy(selected_features, dataset, num_folds=10):
     for training_fold, testing_fold in folds:
         model = LogisticRegressionModel(len(selected_features))
 
-        model = train(model, training_dataset)
+        model = train(model, training_fold)
         accuracy = test(model, testing_fold)
 
         accuracies.append(accuracy)
@@ -73,8 +86,29 @@ def evaluate_accuracy(selected_features, dataset, num_folds=10):
     return average_accuracy
 
 
-def evaluate_stability(selection_algorithm, dataset, stability_measure=tanimoto_distance, num_folds=10):
-    dataset = remove_unselected_features(dataset, selected_features)
+def evaluate_stability(selection_algorithm,
+                       dataset,
+                       stability_measure=tanimoto_distance,
+                       num_folds=10):
+    """Returns the stability of a feature selection algorithm as measured by a
+    stability measure.
+
+    The stability is approximated by subsampling the dataset via k-fold cross-
+    validation and generating features on the subsamples. Each pair of features
+    is compared using some stability measure. The average stability measure
+    across all pairs of features is returned.
+
+    Arguments:
+        selection_algorithm (func): A function that accepts a dataset as an
+            arguments and returns a list of one-indexed features.
+        dataset (torch.utils.data.Dataset): The dataset to evaluate stability on.
+        stability_measure (func, optional): A real-valued function that accepts
+            two lists of integers as arguments.
+        num_folds (int, optional): The number of folds to measure stability on.
+
+    Returns:
+        The average stability across all pairs of features generated.
+    """
     folds = create_folds(dataset, num_folds)
 
     feature_selections = []
