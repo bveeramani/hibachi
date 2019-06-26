@@ -4,14 +4,14 @@ import unittest
 import torch
 from torch.utils.data import Dataset
 
-from rankers import *
+from rankers import pearson_rank
 
 
-class SelectorsTest(unittest.TestCase):
+class RankersTest(unittest.TestCase):
 
     def test_pearson_select(self):
         dataset = DummyDataset()
-        self.assertEqual(pearson_select(dataset), [2, 1])
+        self.assertEqual(pearson_rank(dataset), [2, 1])
 
 
 class DummyDataset(Dataset):

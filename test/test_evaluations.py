@@ -4,7 +4,7 @@ import unittest
 import torch
 from torch.utils.data import Dataset
 
-from evaluations import *
+from evaluations import spearman_coefficient, tanimoto_distance, remove_unselected_features, create_folds
 
 
 class SimilarityMeasureTest(unittest.TestCase):

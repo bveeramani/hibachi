@@ -4,8 +4,22 @@ import numpy as np
 from third_party import ccm
 
 
+# -----------------------------------------------------------------------------
+# ---- Feature rankers --------------------------------------------------------
+# -----------------------------------------------------------------------------
 # pylint: disable=invalid-name
-def pearson_select(dataset, num_features=None):
+def pearson_rank(dataset, num_features=None):
+    """Ranks features using the Pearson correlation criteria.
+
+    Arguments:
+        dataset (torch.utils.data.Dataset): The dataset to rank features on.
+        num_features (int, optional): If not none, the top num_features
+            features will be selected; otherwise, rankings for all features
+            will be returned.
+
+    Returns:
+        rankings for the top num_features features.
+    """
     assert dataset, "Cannot select features from an empty dataset"
 
     x = [x.tolist() for x, y in dataset]
@@ -31,7 +45,20 @@ def pearson_select(dataset, num_features=None):
     return features[:num_features]
 
 
-def ccm_select(dataset, num_features=None):
+def ccm_rank(dataset, num_features=None):
+    """Ranks features using conditional covariance minimization.
+
+    See https://github.com/Jianbo-Lab/CCM.
+
+    Arguments:
+        dataset (torch.utils.data.Dataset): The dataset to rank features on.
+        num_features (int, optional): If not none, the top num_features
+            features will be selected; otherwise, rankings for all features
+            will be returned.
+
+    Returns:
+        rankings for the top num_features features.
+    """
     assert dataset, "Cannot select features from an empty dataset"
 
     num_features = num_features if num_features else len(dataset[0][0])
@@ -48,7 +75,28 @@ def ccm_select(dataset, num_features=None):
                        num_features,
                        type_Y,
                        epsilon,
-                       iterations=100,
                        verbose=False)
     selected_features = np.argsort(rankings)[:num_features]
     return selected_features
+
+
+# -----------------------------------------------------------------------------
+# ---- Utility functions ------------------------------------------------------
+# -----------------------------------------------------------------------------
+def wrap_ranker(ranker, num_features):
+    """Returns a ranker that takes one argument and selects num_features.
+
+    This is usefull for the evaluations.evaluate_stability function.
+
+    Arguments:
+        ranker (func): A two-argument function that accepts a dataset and an
+            integer representing the number of features to select
+        num_features (int): A positive integer representing the number of
+            features to select.
+    """
+    assert num_features > 0
+
+    def wrapped_ranker(dataset):
+        return ranker(dataset, num_features)
+
+    return wrapped_ranker
