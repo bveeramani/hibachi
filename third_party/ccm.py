@@ -5,7 +5,9 @@ This script contains an object and a function for kernel feature selection via c
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
-import kernel
+from third_party import kernel
+
+
 def center(X):
     """Returns the centered version of the given square matrix, namely
 
@@ -23,6 +25,7 @@ def center(X):
     mean_row = tf.reduce_mean(X, axis=1, keep_dims=True)
     mean_all = tf.reduce_mean(X)
     return X - mean_col - mean_row + mean_all
+
 
 def project(v, z):
     """Returns the Euclidean projection of the given vector onto the positive
@@ -53,6 +56,7 @@ def project(v, z):
     theta = (mu_cumsum[max_index] - z) / (max_index + 1)
     return np.maximum(v - theta, 0)
 
+
 class CCM(object):
     """
     This object implements kernel feature selection via conditional covariance minimization.
@@ -68,14 +72,8 @@ class CCM(object):
     print((-w).argsort()[:10])
 
     """
-    def __init__(
-            self,
-            X,
-            Y,
-            transform_Y,
-            epsilon,
-            D_approx = None
-    ):
+
+    def __init__(self, X, Y, transform_Y, epsilon, D_approx=None):
 
         assert isinstance(X, np.ndarray)
         assert isinstance(Y, np.ndarray)
@@ -90,15 +88,19 @@ class CCM(object):
         X = (X - X.mean(axis=0)) / X.std(axis=0)
 
         # Use Gaussian kernel with automatically chosen sigma.
-        if X.shape[0]*X.shape[0]*X.shape[1]*8 < 2**30:
-            sigma = np.median(np.linalg.norm(X[:, None, :] - X[None, :, :], axis=2))
+        if X.shape[0] * X.shape[0] * X.shape[1] * 8 < 2**30:
+            sigma = np.median(
+                np.linalg.norm(X[:, None, :] - X[None, :, :], axis=2))
         else:
             # Use Monte Carlo sampling to estimate the median instead of the full tensor, if >1GB.
             nsamples = 2**20
             st = np.random.get_state()
             np.random.seed(0x5EEDED)
-            sigma = np.median(np.linalg.norm((X[np.random.randint(0, X.shape[0], nsamples), :]
-                                              - X[np.random.randint(0, X.shape[0], nsamples), :]), axis=1))
+            sigma = np.median(
+                np.linalg.norm(
+                    (X[np.random.randint(0, X.shape[0], nsamples), :] -
+                     X[np.random.randint(0, X.shape[0], nsamples), :]),
+                    axis=1))
             np.random.set_state(st)
             assert not np.isnan(sigma)
             assert sigma > 0.0
@@ -146,40 +148,37 @@ class CCM(object):
                 U_w = kernel_X.random_features(X * self.w, D_approx)
 
                 V_w = tf.matmul(
-                        tf.subtract(
-                            tf.eye(n, dtype=tf.float64),
-                            tf.divide(
-                                tf.ones((n,n), dtype=tf.float64),
-                                tf.constant(float(n), dtype=tf.float64))),
-                        U_w)
+                    tf.subtract(
+                        tf.eye(n, dtype=tf.float64),
+                        tf.divide(tf.ones((n, n), dtype=tf.float64),
+                                  tf.constant(float(n), dtype=tf.float64))),
+                    U_w)
 
                 # eq. 21, arXiv:1707.01164, omitting constant term
 
                 G_X_w_inv = tf.matmul(
-                                tf.scalar_mul(
-                                    tf.constant(-1.0, dtype=tf.float64),
-                                    V_w),
-                                tf.matmul(
-                                    tf.matrix_inverse(
-                                        tf.add(
-                                            tf.matmul(
-                                                V_w,
-                                                V_w,
-                                                transpose_a=True),
-                                            tf.multiply(
-                                                tf.constant(n * epsilon, dtype=tf.float64),
-                                                tf.eye(D_approx, dtype=tf.float64)))),
-                                    V_w,
-                                    transpose_b=True))
+                    tf.scalar_mul(tf.constant(-1.0, dtype=tf.float64), V_w),
+                    tf.matmul(tf.matrix_inverse(
+                        tf.add(
+                            tf.matmul(V_w, V_w, transpose_a=True),
+                            tf.multiply(
+                                tf.constant(n * epsilon, dtype=tf.float64),
+                                tf.eye(D_approx, dtype=tf.float64)))),
+                              V_w,
+                              transpose_b=True))
 
-            self.loss = tf.trace(tf.matmul(
-                    Y, tf.matmul(G_X_w_inv, Y), transpose_a=True))
+            self.loss = tf.trace(
+                tf.matmul(Y, tf.matmul(G_X_w_inv, Y), transpose_a=True))
 
             self.gradients = tf.gradients(self.loss, self.inputs)
 
             self.sess = tf.Session()
 
-    def solve_gradient_descent(self, num_features, learning_rate = 0.001, iterations = 1000, verbose=True):
+    def solve_gradient_descent(self,
+                               num_features,
+                               learning_rate=0.001,
+                               iterations=1000,
+                               verbose=True):
 
         assert num_features <= self.d
 
@@ -198,12 +197,13 @@ class CCM(object):
 
             # Compute loss and print.
             if verbose:
-                loss = self.sess.run(self.loss, feed_dict=dict(
-                    zip(self.inputs, inputs)))
+                loss = self.sess.run(self.loss,
+                                     feed_dict=dict(zip(self.inputs, inputs)))
                 print("iteration {} loss {}".format(iteration, loss))
 
             # Update w with projected gradient method.
-            gradients = self.sess.run(self.gradients, feed_dict=dict(zip(self.inputs, inputs)))
+            gradients = self.sess.run(self.gradients,
+                                      feed_dict=dict(zip(self.inputs, inputs)))
             for i, gradient in enumerate(gradients):
                 inputs[i] -= learning_rate * gradient
             inputs[0] = clip_and_project(inputs[0])
@@ -212,14 +212,21 @@ class CCM(object):
         # Random permutation to avoid bias due to equal weights.
         idx = np.random.permutation(self.d)
         permutated_weights = inputs[0][idx]
-        permutated_ranks=(-permutated_weights).argsort().argsort()+1
+        permutated_ranks = (-permutated_weights).argsort().argsort() + 1
         self.ranks = permutated_ranks[np.argsort(idx)]
-
 
         return inputs[0]
 
-def ccm(X, Y, num_features, type_Y, epsilon, learning_rate = 0.001,
-    iterations = 1000, D_approx = None, verbose = True):
+
+def ccm(X,
+        Y,
+        num_features,
+        type_Y,
+        epsilon,
+        learning_rate=0.001,
+        iterations=1000,
+        D_approx=None,
+        verbose=True):
     """
     This function carries out feature selection via CCM.
     Args:
@@ -245,7 +252,7 @@ def ccm(X, Y, num_features, type_Y, epsilon, learning_rate = 0.001,
         [1,2,...,d]
 
     """
-    assert type_Y in ('ordinal','binary','categorical','real-valued')
+    assert type_Y in ('ordinal', 'binary', 'categorical', 'real-valued')
     if type_Y == 'ordinal' or type_Y == 'real-valued':
         transform_Y = None
     elif type_Y == 'binary':
@@ -253,8 +260,9 @@ def ccm(X, Y, num_features, type_Y, epsilon, learning_rate = 0.001,
     elif type_Y == 'categorical':
         transform_Y = 'one-hot'
 
-    fs = CCM(X, Y, transform_Y, epsilon, D_approx = D_approx)
-    w = fs.solve_gradient_descent(num_features, learning_rate, iterations, verbose)
+    fs = CCM(X, Y, transform_Y, epsilon, D_approx=D_approx)
+    w = fs.solve_gradient_descent(num_features, learning_rate, iterations,
+                                  verbose)
     if verbose:
         print('The weights on featurs are: ', w)
     ranks = fs.ranks
@@ -263,7 +271,10 @@ def ccm(X, Y, num_features, type_Y, epsilon, learning_rate = 0.001,
 
 if __name__ == "__main__":
 
-    X = np.random.randn(100,10); Y = (X[:,0] > 0).astype(float)
+    X = np.random.randn(100, 10)
+    Y = (X[:, 0] > 0).astype(float)
 
-    epsilon = 0.1; num_features = 1; type_Y = 'binary'
-    print(ccm(X, Y, num_features, type_Y, epsilon)) 
+    epsilon = 0.1
+    num_features = 1
+    type_Y = 'binary'
+    print(ccm(X, Y, num_features, type_Y, epsilon))
