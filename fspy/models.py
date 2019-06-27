@@ -1,15 +1,13 @@
-"""Implements binary classification models."""
+"""This module contains PyTorch models."""
 import torch
-import torch.nn as nn
 
 
-class LogisticRegressionModel(nn.Module):
+class LogisticRegressionModel(torch.nn.Module):
     """A simple logistic regression model"""
 
     def __init__(self, in_features):
         super(LogisticRegressionModel, self).__init__()
-        self.ree = in_features
-        self.linear = nn.Linear(in_features, 1)
+        self.linear = torch.nn.Linear(in_features, 1)
 
     def forward(self, x):  # pylint: disable=arguments-differ
         return torch.sigmoid(self.linear(x))
