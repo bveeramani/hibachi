@@ -17,6 +17,7 @@ def train(model,
           batch_size=DEFAULT_BATCH_SIZE,
           num_epochs=DEFAULT_EPOCH_SIZE,
           loss_func=torch.nn.BCELoss(),
+          regularizer=None,
           device=DEFAULT_DEVICE,
           quiet=False):
     """Trains a model over a dataset.
@@ -29,6 +30,8 @@ def train(model,
         batch_size (int, optional): The training batch size.
         num_epochs (int, optional): The number of epochs to propogate over.
         loss_func (callable, optional): The cost function.
+        regularizer (callable, optional): A function that takes a model as
+            input and return a number.
         device (str): The device on which to run the test.
         quiet (bool, optional): If true, then this function will not print
             status messages to STDOUT.
@@ -48,8 +51,8 @@ def train(model,
         print("DEVICE=%s" % device, end="\n\n")
 
         features, label = dataset[0]
-        print("INPUT_SHAPE=", features.shape, sep="")
-        print("LABEL_SHAPE=", label.shape, sep="")
+        print("INPUT_SHAPE=", torch.tensor(features).shape, sep="")
+        print("LABEL_SHAPE=", torch.tensor(label).shape, sep="")
         print("DATASET_SIZE=%d" % len(dataset), end="\n\n")
 
     def print_batch_results(epoch, batch, loss):
@@ -83,6 +86,9 @@ def train(model,
             # torch.Size([N, 1]) => torch.Size([N])
             predictions = torch.squeeze(predictions)
             loss = loss_func(predictions, labels)
+
+            if regularizer:
+                loss += regularizer(model)
 
             if not quiet:
                 print_batch_results(epoch, batch_number, loss)

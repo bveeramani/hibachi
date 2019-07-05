@@ -1,7 +1,20 @@
 """Functions for feature selection."""
 import numpy as np
+import torch
 
 from third_party import ccm
+
+
+# -----------------------------------------------------------------------------
+# ---- Penalty functions ------------------------------------------------------
+# -----------------------------------------------------------------------------
+def lasso_penalty(model, smoothing=1):
+    """Calculates the L1 regularization term for a model."""
+    penalty = 0
+    for name, parameter in model.named_parameters():
+        if "bias" not in name:
+            penalty += torch.sum(torch.abs(parameter))
+    return smoothing * penalty
 
 
 # -----------------------------------------------------------------------------

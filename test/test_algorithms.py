@@ -29,6 +29,19 @@ class CCMTest(unittest.TestCase):
         self.assertEqual(algorithms.ccm_select(dataset, 1), set([1]))
 
 
+class RegularizerTest(unittest.TestCase):
+
+    def test_lasso_penalty(self):
+        model = StubModel([1, 1])
+        self.assertEqual(algorithms.lasso_penalty(model), 2)
+
+        model = StubModel([1, -1])
+        self.assertEqual(algorithms.lasso_penalty(model), 2)
+
+        model = StubModel([1, 0])
+        self.assertEqual(algorithms.lasso_penalty(model, 2), 2)
+
+
 class DummyDataset(Dataset):
 
     def __init__(self):
@@ -40,3 +53,13 @@ class DummyDataset(Dataset):
 
     def __len__(self):
         return 4
+
+
+class StubModel(torch.nn.Module):
+
+    def __init__(self, weights):
+        super(StubModel, self).__init__()
+        self.weight = torch.nn.Parameter(torch.tensor(weights, dtype=torch.float))
+
+    def forward(self, x):  # pylint: disable=arguments-differ
+        return x
