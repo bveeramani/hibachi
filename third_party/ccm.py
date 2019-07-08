@@ -85,6 +85,8 @@ class CCM(object):
         self.d = d
 
         # Whitening transform for X.
+        #reet = X.std(axis=0)
+        #reet[21] = 1
         X = (X - X.mean(axis=0)) / X.std(axis=0)
 
         # Use Gaussian kernel with automatically chosen sigma.

@@ -62,7 +62,7 @@ def pearson_rank(dataset):
     return rankings
 
 
-def ccm_rank(dataset):
+def ccm_rank(dataset, num_features=10, epsilon=0.1):
     """Computes a ranking using conditional covariance minimization.
 
     Let m represent the total number of features. Then, a ranking r is a list
@@ -80,12 +80,10 @@ def ccm_rank(dataset):
 
     # An N x K array where N is the number of samples and K is the number of features
     design_matrix = np.array(
-        [list(observation) for observation, label in dataset])
+        [observation.tolist() for observation, label in dataset])
     # An length-N 1-dimensional array where N is the number of samples
     label_matrix = np.array(
-        [1 if label == 1 else -1 for observation, label in dataset])
-    epsilon = 0.001
-    num_features = len(dataset[0][0])
+        [label.item() for observation, label in dataset])
     type_Y = 'binary'
     rankings = ccm.ccm(design_matrix,
                        label_matrix,
@@ -93,7 +91,7 @@ def ccm_rank(dataset):
                        type_Y,
                        epsilon,
                        iterations=100,
-                       verbose=False)
+                       verbose=True)
     return list(rankings)
 
 
