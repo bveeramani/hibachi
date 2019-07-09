@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset, ConcatDataset, random_split
 
 from fspy.datasets import ListDataset
-
+import torch
 
 def eliminate(dataset, features):
     """Returns a copy of the dataset with the specified features removed.
@@ -18,9 +18,9 @@ def eliminate(dataset, features):
     num_features = len(dataset[0][0])
 
     def transform(observation):
-        observation = [
-            observation[i] for i in range(num_features) if i not in features
-        ]
+        observation = torch.tensor([
+            observation[i].item() for i in range(num_features) if i not in features
+        ])
         return observation
 
     observations = [transform(observation) for observation, label in dataset]
@@ -43,7 +43,7 @@ def fold(dataset, num_folds):
         second element is a dataset containing all of the data in the i-th fold.
     """
     assert num_folds > 1, "num_folds must be greater than one"
-    
+
     subsample_size = int(len(dataset) / num_folds)
     subsample_sizes = tuple(
         subsample_size if i < num_folds - 1 else len(dataset) - subsample_size *

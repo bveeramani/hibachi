@@ -8,13 +8,20 @@ from third_party import ccm
 # -----------------------------------------------------------------------------
 # ---- Penalty functions ------------------------------------------------------
 # -----------------------------------------------------------------------------
-def lasso_penalty(model, smoothing=1):
-    """Calculates the L1 regularization term for a model."""
-    penalty = 0
-    for name, parameter in model.named_parameters():
-        if "bias" not in name:
-            penalty += torch.sum(torch.abs(parameter))
-    return smoothing * penalty
+def L1Penalty(alpha=1):
+
+    def penalize(model):
+        """Calculates the L1 regularization term for a model."""
+        penalty = None
+        for name, parameter in model.named_parameters():
+            if not "bias" in name:
+                if not penalty:
+                    penalty = parameter.norm(1)
+                else:
+                    penalty += parameter.norm(1)
+        return alpha * penalty
+
+    return penalize
 
 
 # -----------------------------------------------------------------------------
@@ -91,7 +98,7 @@ def ccm_rank(dataset, num_features=10, epsilon=0.1):
                        type_Y,
                        epsilon,
                        iterations=100,
-                       verbose=True)
+                       verbose=False)
     return list(rankings)
 
 

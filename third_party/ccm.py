@@ -85,9 +85,9 @@ class CCM(object):
         self.d = d
 
         # Whitening transform for X.
-        #reet = X.std(axis=0)
-        #reet[21] = 1
-        X = (X - X.mean(axis=0)) / X.std(axis=0)
+        reet = X.std(axis=0)
+        reet[21] = 1
+        X = (X - X.mean(axis=0)) / reet
 
         # Use Gaussian kernel with automatically chosen sigma.
         if X.shape[0] * X.shape[0] * X.shape[1] * 8 < 2**30:
@@ -103,6 +103,7 @@ class CCM(object):
                     (X[np.random.randint(0, X.shape[0], nsamples), :] -
                      X[np.random.randint(0, X.shape[0], nsamples), :]),
                     axis=1))
+
             np.random.set_state(st)
             assert not np.isnan(sigma)
             assert sigma > 0.0

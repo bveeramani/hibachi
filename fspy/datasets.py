@@ -101,21 +101,22 @@ class Lactamase(Dataset):
 
     def __init__(self, filename, transform=None):
         with open(filename) as file:
-            self.data = file.readlines()[1:]
+            self.lines = file.readlines()[1:]
         self.transform = transform
 
-        random.shuffle(self.data)
+        random.shuffle(self.lines)
 
 
     def __getitem__(self, index):
-        # First line contains headings so we add 1 to index
-        line = self.data[index]
+        line = self.lines[index]
 
         observation = line.split(",")[2:]
         observation = [float(number) for number in observation]
+        observation = torch.tensor(observation, dtype=torch.float)
 
         label = line.split(",")[1]
-        label = int(float(label))
+        label = float(label)
+        label = torch.tensor(label, dtype=torch.float)
 
         if self.transform:
             observation, label = self.transform(observation, label)
@@ -123,36 +124,26 @@ class Lactamase(Dataset):
         return observation, label
 
     def __len__(self):
-        return len(self.data)
+        return len(self.lines)
 
 
 class P450(Dataset):
-    """Real-world binary classification dataset containing non-categorical data
-    taken from a Cytochrome P450 gene library.
-
-    Arguments:
-        filename (string): Path to a CSV file containing the data.
-        transform (callable, optional): A two-argument function that takes
-            a list of 51 numbers and a binary label, and returns a transformed
-            version of each.
-    """
-
-    NUM_FEATURES = 51
 
     def __init__(self, filename, transform=None):
         with open(filename) as file:
-            self.lines = file.readlines()
+            self.lines = file.readlines()[1:]
         self.transform = transform
 
     def __getitem__(self, index):
-        # First line contains headings so we add 1 to index
-        line = self.lines[index + 1]
+        line = self.lines[index]
 
         observation = line.split(",")[2:]
         observation = [float(number) for number in observation]
+        observation = torch.tensor(observation, dtype=torch.float)
 
         label = line.split(",")[1]
-        label = int(float(label))
+        label = float(label)
+        label = torch.tensor(label, dtype=torch.float)
 
         if self.transform:
             observation, label = self.transform(observation, label)
@@ -160,25 +151,10 @@ class P450(Dataset):
         return observation, label
 
     def __len__(self):
-        # First line contains headings so we substract 1 to length
-        return len(self.lines) - 1
+        return len(self.lines)
 
 
 class P450C(Dataset):
-    """Real-world binary classification dataset containing categorical data
-    taken from a Cytochrome P450 gene library.
-
-    The data set contains eight categories, with each category belonging to one
-    of three classes. Each category is encoded using a one-hot encoding scheme.
-    As a result, the data set contains twenty-four features.
-
-    Arguments:
-        filename (string): Path to a CSV file containing the data.
-        transform (callable, optional): A function that takes in a list of 24
-            bits and a binary label, and returns a transformed version of each.
-    """
-
-    NUM_FEATURES = 24
 
     def __init__(self, filename, transform=None):
         with open(filename) as file:
@@ -199,10 +175,10 @@ class P450C(Dataset):
             for categorical_code in observation
         ]
         observation = torch.cat(observation)
-        observation = observation.tolist()
+        observation = observation.type(torch.FloatTensor)
 
         label = line.split(",")[1]
-        label = int(label)
+        label = torch.tensor(int(label), dtype=torch.float)
 
         if self.transform:
             observation, label = self.transform(observation, label)
@@ -212,11 +188,6 @@ class P450C(Dataset):
     def __len__(self):
         return len(self.lines)
 
-
-# -----------------------------------------------------------------------------
-# ---- Utility datasets -------------------------------------------------------
-# -----------------------------------------------------------------------------
-
 class ListDataset(Dataset):
     """Dataset wrapping two lists."""
 
@@ -225,24 +196,6 @@ class ListDataset(Dataset):
 
         self.x = x
         self.y = y
-
-    def __getitem__(self, index):
-        return self.x[index], self.y[index]
-
-    def __len__(self):
-        return len(self.x)
-
-
-class PredictionDataset(Dataset):
-    """Dataset wrapping another dataset.
-
-    Use this wrapper to ensure that non-tensor datasets function properly
-    when used with torch model predictions.
-    """
-
-    def __init__(self, dataset):
-        self.x = torch.tensor([x for x, y in dataset])
-        self.y = torch.tensor([y for x, y in dataset])
 
     def __getitem__(self, index):
         return self.x[index], self.y[index]
