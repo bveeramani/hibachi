@@ -21,7 +21,7 @@ in r.
 import numpy as np
 import torch
 
-from hibachi import criteria
+from hibachi import criteria, utils
 
 
 def correlation(dataset):
@@ -79,7 +79,7 @@ def ccm(dataset):
             for j in range(n):
                 K_X_w[i, j] = kernel((X * w)[i], (X * w)[j])
 
-        G_X_w = center(K_X_w)
+        G_X_w = utils.center(K_X_w)
         G_X_w_inv = torch.inverse(G_X_w + n * epsilon * torch.eye(n))
         loss = torch.trace(y.transpose(0, 1) @ G_X_w_inv @ y)
         loss.backward()
@@ -88,7 +88,7 @@ def ccm(dataset):
             w -= learning_rate * w.grad
             w = w.clamp(0, 1)
             if torch.sum(w) > m:
-                w = project(w, m)
+                w = utils.project(w, m)
 
     # Compute rank of each feature based on weight.
     # Random permutation to avoid bias due to equal weights.
