@@ -28,7 +28,7 @@ def correlation(dataset):
     x = torch.stack([x for x, y in dataset])
     y = torch.tensor([y for x, y in dataset])
 
-    x_hat = torch.mean(x, dim = 0)
+    x_hat = torch.mean(x, dim=0)
     y_hat = torch.mean(y)
 
     s_xy = torch.sum((x - x_hat) * (y - y_hat).view(-1, 1), dim=0)

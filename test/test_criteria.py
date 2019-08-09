@@ -39,13 +39,17 @@ class StubDataset(Dataset):
 
     def __getitem__(self, index):
         if index == 0:
-            return torch.tensor([0, 0], dtype=torch.float), torch.tensor(0, dtype=torch.float)
+            return torch.tensor([0, 0], dtype=torch.float), torch.tensor(
+                0, dtype=torch.float)
         elif index == 1:
-            return torch.tensor([1, 3], dtype=torch.float), torch.tensor(1, dtype=torch.float)
+            return torch.tensor([1, 3], dtype=torch.float), torch.tensor(
+                1, dtype=torch.float)
         elif index == 2:
-            return torch.tensor([2, 1], dtype=torch.float), torch.tensor(2, dtype=torch.float)
+            return torch.tensor([2, 1], dtype=torch.float), torch.tensor(
+                2, dtype=torch.float)
         elif index == 3:
-            return torch.tensor([3, 6], dtype=torch.float), torch.tensor(3, dtype=torch.float)
+            return torch.tensor([3, 6], dtype=torch.float), torch.tensor(
+                3, dtype=torch.float)
         else:
             raise IndexError("dataset index out of range")
 

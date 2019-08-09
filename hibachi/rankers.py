@@ -76,7 +76,8 @@ def ccm(dataset, m=None, epsilon=0.001, num_iterations=100):
         w.requires_grad_(True)
 
         X_w = X * w
-        K_X_w = torch.exp(-torch.sum((X_w.unsqueeze(1) - X_w.unsqueeze(0)) ** 2, dim=2) / (2 * sigma ** 2))
+        K_X_w = torch.exp(-torch.sum(
+            (X_w.unsqueeze(1) - X_w.unsqueeze(0))**2, dim=2) / (2 * sigma**2))
         G_X_w = utils.center(K_X_w)
         G_X_w_inv = torch.inverse(G_X_w + n * epsilon * torch.eye(n))
 

@@ -52,7 +52,7 @@ class RankersTest(unittest.TestCase):
         ranks = rankers.ccm(dataset, m=4, epsilon=0.1, num_iterations=1000)
 
         actual = torch.sum(ranks[0:4])
-        expected = torch.tensor(10) # 1 + 2 + 3 + 4
+        expected = torch.tensor(10)  # 1 + 2 + 3 + 4
 
         self.assertEqual(actual, expected)
 
@@ -62,7 +62,7 @@ class RankersTest(unittest.TestCase):
         ranks = rankers.ccm(dataset, m=4, epsilon=0.001, num_iterations=100)
 
         actual = torch.sum(ranks[0:4])
-        expected = torch.tensor(10) # 1 + 2 + 3 + 4
+        expected = torch.tensor(10)  # 1 + 2 + 3 + 4
 
         self.assertEqual(actual, expected)
 
