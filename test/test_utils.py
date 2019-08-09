@@ -31,7 +31,7 @@ class UtilsTest(unittest.TestCase):
         self.assertTrue(torch.equal(actual, expected))
 
     def test_center(self):
-        X = torch.arange(1, 5).reshape(2, 2)
+        X = torch.arange(1, 5, dtype=torch.float).reshape(2, 2)
 
         actual = utils.center(X)
         expected = torch.zeros(2, 2, dtype=torch.float)

@@ -18,10 +18,12 @@ Let d represent the total number of features. Then, a ranking r is a list
 feature i in ranking r, and each element of {1,..., d} appears exactly once
 in r.
 """
+from timeit import default_timer as timer
+
 import numpy as np
 import torch
 
-from hibachi import criteria, utils
+from hibachi import criteria, utils, datasets
 
 
 def correlation(dataset):
@@ -37,7 +39,7 @@ def correlation(dataset):
     return torch.argsort(-scores) + 1
 
 
-def ccm(dataset):
+def ccm(dataset, m=None, epsilon=0.001, num_iterations=100):
     """Computes a ranking using conditional covariance minimization.
 
     See https://github.com/Jianbo-Lab/CCM.
@@ -52,11 +54,10 @@ def ccm(dataset):
     y = torch.tensor([label for observation, label in dataset])
     n, d = X.shape
 
-    epsilon = 0.01
-    m = np.ceil(d / 5)
+    m = m or np.ceil(d / 5)
 
     # Whitening transform for X
-    X = (X - X.mean(dim=0)) / X.std(dim=0)
+    X = (X - X.mean(dim=0)) / X.std(dim=0, unbiased=False)
 
     sigma = torch.median((X[:, None] - X[None, :]).norm(2, dim=2))
     assert sigma > 0
@@ -67,20 +68,18 @@ def ccm(dataset):
     y = y.unsqueeze(1)
     y = y - y.mean(0)
 
-    learning_rate = 0.1
+    learning_rate = 0.001
 
     w = (m / d) * torch.ones(d)
 
-    for iteration in range(100):
+    for iteration in range(num_iterations):
         w.requires_grad_(True)
 
-        K_X_w = torch.zeros(n, n)
-        for i in range(n):
-            for j in range(n):
-                K_X_w[i, j] = kernel((X * w)[i], (X * w)[j])
-
+        X_w = X * w
+        K_X_w = torch.exp(-torch.sum((X_w.unsqueeze(1) - X_w.unsqueeze(0)) ** 2, dim=2) / (2 * sigma ** 2))
         G_X_w = utils.center(K_X_w)
         G_X_w_inv = torch.inverse(G_X_w + n * epsilon * torch.eye(n))
+
         loss = torch.trace(y.transpose(0, 1) @ G_X_w_inv @ y)
         loss.backward()
 
@@ -88,6 +87,7 @@ def ccm(dataset):
             w -= learning_rate * w.grad
             w = w.clamp(0, 1)
             if torch.sum(w) > m:
+                start = timer()
                 w = utils.project(w, m)
 
     # Compute rank of each feature based on weight.

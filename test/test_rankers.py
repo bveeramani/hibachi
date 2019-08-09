@@ -17,13 +17,13 @@ import unittest
 import torch
 from torch.utils.data import Dataset
 
-from hibachi import rankers
+from hibachi import rankers, datasets
 
 
 class RankersTest(unittest.TestCase):
 
     def test_correlation(self):
-        dataset = StubDataset(n=100, d=2)
+        dataset = StubDataset(n=50, d=2)
 
         actual = rankers.correlation(dataset)
         expected = torch.tensor([1, 2])
@@ -32,8 +32,39 @@ class RankersTest(unittest.TestCase):
         self.assertTrue(torch.equal(actual, expected))
 
     def test_ccm(self):
-        dataset = StubDataset(n=100, d=2)
-        self.assertEqual(rankers.ccm(dataset), torch.tensor([1, 2]))
+        dataset = StubDataset(n=50, d=2)
+
+        actual = rankers.ccm(dataset, num_iterations=10)
+        expected = torch.tensor([1, 2])
+
+        self.assertTrue(torch.equal(actual, expected))
+
+    def test_ccm_returns_long(self):
+        dataset = StubDataset(n=50, d=4)
+
+        ranks = rankers.ccm(dataset, m=2, num_iterations=1)
+
+        self.assertTrue(isinstance(ranks, torch.LongTensor))
+
+    def test_ccm_correctly_ranks_anr(self):
+        dataset = datasets.ANR(100)
+
+        ranks = rankers.ccm(dataset, m=4, epsilon=0.1, num_iterations=1000)
+
+        actual = torch.sum(ranks[0:4])
+        expected = torch.tensor(10) # 1 + 2 + 3 + 4
+
+        self.assertEqual(actual, expected)
+
+    def test_ccm_correctly_ranks_orange_skin(self):
+        dataset = datasets.OrangeSkin(100)
+
+        ranks = rankers.ccm(dataset, m=4, epsilon=0.001, num_iterations=100)
+
+        actual = torch.sum(ranks[0:4])
+        expected = torch.tensor(10) # 1 + 2 + 3 + 4
+
+        self.assertEqual(actual, expected)
 
 
 class StubDataset(Dataset):
