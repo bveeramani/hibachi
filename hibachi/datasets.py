@@ -1,8 +1,54 @@
 """Classes for preprocessing and loading datasets."""
 import random
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset
+
+
+class HibachiDataset(Dataset):
+
+    def select(self, indices):
+        raise NotImplementedError
+
+    @property
+    def dimensionality(self):
+        raise NotImplementedError
+
+
+class NumpyDataset(HibachiDataset):
+
+    def __init__(self, x, y, transform=None):
+        if not x.ndim == 2:
+            raise ValueError("Invalid number of x dimensions: {}.".format(x.ndim))
+        if not y.ndim == 1:
+            raise ValueError("Invalid number of y dimensions: {}.".format(y.ndim))
+        if not len(x) == len(y):
+            raise ValueError("Length mismatch: {} != {}.".format(len(x), len(y)))
+        self.x, self.y  = np.copy(x), np.copy(y)
+        self.transform = transform
+
+    def __getitem__(self, index):
+        x = torch.tensor(self.x[index], dtype=torch.float)
+        y = torch.tensor(self.y[index], dtype=torch.float)
+
+        if self.transform:
+            x, y = self.transform(x, y)
+
+        return x, y
+
+    def __len__(self):
+        return len(self.x)
+
+    def select(self, indices):
+        x = self.x[:, list(indices)]
+        return NumpyDataset(x, self.y)
+
+    @property
+    def dimensionality(self):
+        if self.x is None:
+            raise RuntimeError("Dimensionality is undefined for empty datasets.")
+        return len(self.x[0])
 
 
 class OrangeSkin(Dataset):
@@ -81,3 +127,16 @@ class ANR(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+
+class FunctionDataset(Dataset):
+
+    def __init__(self, function, domain, dtype=torch.float):
+        self.x = [torch.tensor(x, dtype=dtype) for x in domain]
+        self.y = [torch.tensor(function(x), dtype=dtype) for x in domain]
+
+    def __getitem__(self, index):
+        return self.x[index], self.y[index]
+
+    def __len__(self):
+        return len(self.x)
