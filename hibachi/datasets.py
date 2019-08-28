@@ -16,42 +16,82 @@ class HibachiDataset(Dataset):
         raise NotImplementedError
 
 
-class NumpyDataset(HibachiDataset):
+class TensorDataset(HibachiDataset):
 
-    def __init__(self, x, y, transform=None):
-        if not x.ndim == 2:
-            raise ValueError("Invalid number of x dimensions: {}.".format(x.ndim))
-        if not y.ndim == 1:
-            raise ValueError("Invalid number of y dimensions: {}.".format(y.ndim))
-        if not len(x) == len(y):
-            raise ValueError("Length mismatch: {} != {}.".format(len(x), len(y)))
-        self.x, self.y  = np.copy(x), np.copy(y)
+    def __init__(self, X, y, transform=None):
+        if not X.dim() == 2:
+            raise ValueError("Invalid number of X dimensions: {}.".format(
+                X.dim()))
+        if not y.dim() == 1:
+            raise ValueError("Invalid number of y dimensions: {}.".format(
+                y.dim()))
+        if not len(X) == len(y):
+            raise ValueError("Length mismatch: {} != {}.".format(
+                len(X), len(y)))
+        self.X, self.y = torch.clone(X), torch.clone(y)
         self.transform = transform
 
     def __getitem__(self, index):
-        x = torch.tensor(self.x[index], dtype=torch.float)
-        y = torch.tensor(self.y[index], dtype=torch.float)
+        observation, response = self.X[index], self.y[index]
 
         if self.transform:
-            x, y = self.transform(x, y)
+            observation, response = self.transform(observation, response)
 
-        return x, y
+        return observation, response
 
     def __len__(self):
-        return len(self.x)
+        return len(self.X)
 
     def select(self, indices):
-        x = self.x[:, list(indices)]
-        return NumpyDataset(x, self.y)
+        X = self.X[:, list(indices)]
+        return TensorDataset(X, self.y)
 
     @property
     def dimensionality(self):
         if self.x is None:
-            raise RuntimeError("Dimensionality is undefined for empty datasets.")
+            raise RuntimeError(
+                "Dimensionality is undefined for empty datasets.")
         return len(self.x[0])
 
 
-class OrangeSkin(Dataset):
+class NumpyDataset(HibachiDataset):
+
+    def __init__(self, x, y, transform=None):
+        if not X.ndim == 2:
+            raise ValueError("Invalid number of X dimensions: {}.".format(
+                x.ndim))
+        if not y.ndim == 1:
+            raise ValueError("Invalid number of y dimensions: {}.".format(
+                y.ndim))
+        if not len(X) == len(y):
+            raise ValueError("Length mismatch: {} != {}.".format(
+                len(X), len(y)))
+        self.X = torch.tensor(np.copy(X), dtype=torch.float)
+        self.y = torch.tensor(np.copy(y), dtype=torch.float)
+        self.transform = transform
+
+    def __getitem__(self, index):
+        observation, response = self.x[index], self.y[index]
+        if self.transform:
+            observation, response = self.transform(observation, response)
+        return observation, response
+
+    def __len__(self):
+        return len(self.X)
+
+    def select(self, indices):
+        X = self.X[:, list(indices)]
+        return NumpyDataset(X, self.y)
+
+    @property
+    def dimensionality(self):
+        if self.X is None:
+            raise RuntimeError(
+                "Dimensionality is undefined for empty datasets.")
+        return len(self.X[0])
+
+
+class OrangeSkin(HibachiDataset):
     """Synthetic binary classification dataset.
 
     Given Y = -1, (X_1, ..., X_10) ~ N(0, I_10). Given Y = 1, (X_5, ..., X_10) ~
@@ -62,36 +102,50 @@ class OrangeSkin(Dataset):
         size: The number of samples to generate.
     """
 
-    def __init__(self, size):
+    def __init__(self, n, transform=None):
         torch.manual_seed(0)
 
-        self.data = []
-        for _ in range(size // 2):
+        observations, labels = [], []
+        for _ in range(n // 2):
             observation = torch.randn(10)
-            label = torch.tensor(-1, dtype=torch.float)
+            label = torch.tensor(-1, dtype=torch.long)
 
-            sample = observation, label
-            self.data.append(sample)
+            observations.append(observation)
+            labels.append(label)
 
-        for _ in range(size - size // 2):
+        for _ in range(n - n // 2):
             observation = torch.randn(4)
 
             while not 9 <= torch.sum(torch.pow(observation, 2)) <= 16:
                 observation = torch.randn(4)
 
             observation = torch.cat((observation, torch.randn(6)))
-            label = torch.tensor(1, dtype=torch.float)
+            label = torch.tensor(1, dtype=torch.long)
 
-            sample = observation, label
-            self.data.append(sample)
+            observations.append(observation)
+            labels.append(label)
 
-        random.shuffle(self.data)
+        self.X = torch.stack(observations)
+        self.y = torch.stack(labels)
+        self.transform = transform
+
 
     def __getitem__(self, index):
-        return self.data[index]
+        observation, label = self.X[index], self.y[index]
+        if self.transform:
+            observation, label = self.transform(observation, label)
+        return observation, label
 
     def __len__(self):
-        return len(self.data)
+        return len(self.X)
+
+    @property
+    def dimensionality(self):
+        return 10
+
+    def select(self, indices):
+        X = self.X[:, list(indices)]
+        return TensorDataset(X, self.y)
 
 
 class ANR(Dataset):
@@ -107,36 +161,55 @@ class ANR(Dataset):
         size: The number of samples to generate.
     """
 
-    def __init__(self, size, std=1):
-        self.data = []
+    def __init__(self, n, std=1, transform=None):
+        observations, responses = [], []
 
-        for _ in range(size):
-            X = torch.randn(10)
+        for _ in range(n):
+            observation = torch.randn(10)
             epsilon = torch.squeeze(
                 torch.normal(torch.tensor(0.), torch.tensor(float(std))))
-            Y = -2 * torch.sin(2 * X[0]) + max(
+            response = -2 * torch.sin(2 * X[0]) + max(
                 X[1], 0) + X[2] + torch.exp(-X[3]) + epsilon
 
-            sample = X, Y
-            self.data.append(sample)
+            observations.append(observation)
+            responses.append(response)
 
-        random.shuffle(self.data)
+        self.X = torch.stack(observation)
+        self.y = torch.stack(responses)
+        self.transform = transform
 
     def __getitem__(self, index):
-        return self.data[index]
+        observation, response = self.X[index], self.y[index]
+        if self.transform:
+            observation, response = self.transform(observation, response)
+        return observation, response
 
     def __len__(self):
-        return len(self.data)
+        return len(self.X)
+
+    @property
+    def dimensionality(self):
+        return 10
+
+    def select(self, indices):
+        X = self.X[:, list(indices)]
+        return TensorDataset(X, self.y)
 
 
 class FunctionDataset(Dataset):
 
-    def __init__(self, function, domain, dtype=torch.float):
-        self.x = [torch.tensor(x, dtype=dtype) for x in domain]
-        self.y = [torch.tensor(function(x), dtype=dtype) for x in domain]
+    def __init__(self, function, domain, transform=None):
+        self.x = [torch.tensor(x, dtype=torch.float) for x in domain]
+        self.y = [torch.tensor(function(x), dtype=torch.float) for x in domain]
+        self.transform = transform
 
     def __getitem__(self, index):
-        return self.x[index], self.y[index]
+        x, y = self.x[index], self.y[index]
+
+        if self.transform:
+            x, y = self.transform(x, y)
+
+        return x, y
 
     def __len__(self):
         return len(self.x)

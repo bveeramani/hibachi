@@ -27,16 +27,26 @@ from hibachi import criteria, utils, datasets
 
 
 def correlation(dataset):
-    """Computes a ranking using Pearson's correlation coefficient.
+    """Calculates the Pearson correlation coefficient for each covariate.
 
     Arguments:
-        dataset: An iterable of x, y tensor pairs.
+        dataset: An iterable of (x, y) pairs of tensors.
 
     Returns:
-        A ranking over the dataset.
+        A one-dimensional tensor containing a Pearson correlation coefficient
+        for each covariate.
     """
-    scores = criteria.correlation(dataset)
-    return torch.argsort(-scores) + 1
+    x = torch.stack([x for x, y in dataset])
+    y = torch.tensor([y for x, y in dataset])
+
+    x_hat = torch.mean(x, dim=0)
+    y_hat = torch.mean(y)
+
+    s_xy = torch.sum((x - x_hat) * (y - y_hat).view(-1, 1), dim=0)
+    s2_x = torch.sum(torch.pow(x - x_hat, 2), dim=0)
+    s2_y = torch.sum(torch.pow(y - y_hat, 2)).view(-1, 1)
+
+    return torch.pow(torch.squeeze(s_xy / torch.sqrt(s2_x * s2_y)), 2)
 
 
 def ccm(dataset, m=None, epsilon=0.001, num_iterations=100):
@@ -57,9 +67,11 @@ def ccm(dataset, m=None, epsilon=0.001, num_iterations=100):
     m = m or np.ceil(d / 5)
 
     # Whitening transform for X
-    X = (X - X.mean(dim=0)) / X.std(dim=0, unbiased=False)
+    X = (X - X.mean(dim=0)) / X.std(dim=0)
+    X[torch.isnan(X) == 1] = 0
 
     sigma = torch.median((X[:, None] - X[None, :]).norm(2, dim=2))
+
     assert sigma > 0
 
     def kernel(x, x_tilda):
@@ -72,7 +84,7 @@ def ccm(dataset, m=None, epsilon=0.001, num_iterations=100):
 
     w = (m / d) * torch.ones(d)
 
-    for iteration in range(num_iterations):
+    for iteration in trange(num_iterations, leave=False):
         w.requires_grad_(True)
 
         X_w = X * w
@@ -88,16 +100,6 @@ def ccm(dataset, m=None, epsilon=0.001, num_iterations=100):
             w -= learning_rate * w.grad
             w = w.clamp(0, 1)
             if torch.sum(w) > m:
-                start = timer()
                 w = utils.project(w, m)
 
-    # Compute rank of each feature based on weight.
-    # Random permutation to avoid bias due to equal weights.
-    # Code sourced from https://github.com/Jianbo-Lab/CCM
-    # TODO: Rewrite this using torch
-    indices = np.random.permutation(d)
-    permutated_weights = w[indices]
-    permutated_ranks = (-permutated_weights).argsort().argsort() + 1
-    ranks = permutated_ranks[np.argsort(indices)]
-
-    return ranks
+    return w

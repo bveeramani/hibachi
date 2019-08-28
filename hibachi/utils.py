@@ -14,6 +14,8 @@
 """Utility functions for feature selection methods."""
 import torch
 
+import random
+
 
 def project(v, z):
     """Returns the projection of the given vector onto the positive simplex.
@@ -22,7 +24,7 @@ def project(v, z):
 
         {w : \sum_i w_i = z, w_i >= 0}.
 
-    Implements the formula specified in Figure 1 of Duchi et al. (2008).
+    Implements the formula specified in Figure 2 of Duchi et al. (2008).
     See http://stanford.edu/~jduchi/projects/DuchiShSiCh08.pdf.
 
     This function uses code sourced from https://github.com/Jianbo-Lab/CCM.
@@ -40,16 +42,26 @@ def project(v, z):
         raise ValueError("z must be a strictly positive scalar")
 
     v = v.type(torch.FloatTensor)
-
     n = len(v)
-    mu = v.sort(descending=True).values
-    p = max({
-        j for j in range(1, n + 1) if mu[j - 1] - (1 / j) *
-        (sum([mu[r - 1] for r in range(1, j + 1)]) - z) > 0
-    })
-    theta = (1 / p) * (sum([mu[i - 1] for i in range(1, p + 1)]) - z)
-    w = torch.tensor([max(v[i - 1] - theta, 0) for i in range(1, n + 1)])
 
+    U = [i for i in range(n)]
+    s = 0
+    p = 0
+    while U:
+        k = random.choice(tuple(U))
+        G = {j for j in U if v[j - 1] >= v[k - 1]}
+        L = {j for j in U if v[j - 1] < v[k - 1]}
+        delta_p = len(G)
+        delta_s = sum([v[j - 1] for j in G])
+        if (s + delta_s) - (p + delta_p) * v[k - 1] < z:
+            s = s + delta_s
+            p = p + delta_p
+            U = L
+        else:
+            U = G - {k}
+
+    theta = (s - z) / p
+    w = torch.tensor([max(v[i - 1] - theta, 0) for i in range(1, n + 1)])
     return w
 
 

@@ -39,20 +39,13 @@ class RankersTest(unittest.TestCase):
 
         self.assertTrue(torch.equal(actual, expected))
 
-    def test_ccm_returns_long(self):
-        dataset = StubDataset(n=50, d=4)
-
-        ranks = rankers.ccm(dataset, m=2, num_iterations=1)
-
-        self.assertTrue(isinstance(ranks, torch.LongTensor))
-
     def test_ccm_correctly_ranks_anr(self):
         dataset = datasets.ANR(100)
 
         ranks = rankers.ccm(dataset, m=4, epsilon=0.1, num_iterations=1000)
 
-        actual = torch.sum(ranks[0:4])
-        expected = torch.tensor(10)  # 1 + 2 + 3 + 4
+        actual = torch.median(ranks[0:4])
+        expected = int((4 + 1) / 2)
 
         self.assertEqual(actual, expected)
 
@@ -61,8 +54,8 @@ class RankersTest(unittest.TestCase):
 
         ranks = rankers.ccm(dataset, m=4, epsilon=0.001, num_iterations=100)
 
-        actual = torch.sum(ranks[0:4])
-        expected = torch.tensor(10)  # 1 + 2 + 3 + 4
+        actual = torch.median(ranks[0:4])
+        expected = int((4 + 1) / 2)
 
         self.assertEqual(actual, expected)
 
