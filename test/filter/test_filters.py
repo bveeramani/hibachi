@@ -11,16 +11,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for hibachi.rankers"""
+"""Tests for hibachi.filters"""
 import unittest
 
 import torch
 from torch.utils.data import Dataset
 
-from hibachi import rankers, datasets
+from hibachi import filters, datasets
 
 
-class RankersTest(unittest.TestCase):
+class FiltersTest(unittest.TestCase):
+
+    def test_VarianceThreshold(self):
+        class StubDataset(Dataset):
+
+            def __init__(self):
+                x0 = torch.tensor([0, 0], dtype=torch.float)
+                x1 = torch.tensor([0, 1], dtype=torch.float)
+                self.X = torch.stack([x0, x1])
+
+            def __getitem__(self, index):
+                return self.X[index], None
+
+            def __len__(self):
+                return len(self.X)
+        criterian = criteria.Variance
+        filter = filters.VarianceThreshold()
+        dataset = StubDataset()
 
     def test_correlation(self):
         dataset = StubDataset(n=50, d=2)

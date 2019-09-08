@@ -44,4 +44,4 @@ class L2Penalty(LDPenalty):
     """Calculates the L2 roughness penalty of a model."""
 
     def __init__(self, smoothing=1):
-        super(L1Penalty, self).__init__(order=2, smoothing=smoothing)
+        super(L2Penalty, self).__init__(order=2, smoothing=smoothing)

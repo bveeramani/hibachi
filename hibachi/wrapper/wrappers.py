@@ -18,7 +18,6 @@ from tqdm import trange
 
 from hibachi import models, measures
 
-
 class TrainingAlgorithm:
 
     def __init__(self,
@@ -53,6 +52,8 @@ class TrainingAlgorithm:
                 loss.backward()
                 optimizer.step()
 
+
+evaluate(weights)
 
 class SuperGreedy:
 

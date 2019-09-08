@@ -1,94 +1,22 @@
+# Copyright 2019 Balaji Veeramani. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Classes for preprocessing and loading datasets."""
 import random
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
-
-class HibachiDataset(Dataset):
-
-    def select(self, indices):
-        raise NotImplementedError
-
-    @property
-    def dimensionality(self):
-        raise NotImplementedError
-
-
-class TensorDataset(HibachiDataset):
-
-    def __init__(self, X, y, transform=None):
-        if not X.dim() == 2:
-            raise ValueError("Invalid number of X dimensions: {}.".format(
-                X.dim()))
-        if not y.dim() == 1:
-            raise ValueError("Invalid number of y dimensions: {}.".format(
-                y.dim()))
-        if not len(X) == len(y):
-            raise ValueError("Length mismatch: {} != {}.".format(
-                len(X), len(y)))
-        self.X, self.y = torch.clone(X), torch.clone(y)
-        self.transform = transform
-
-    def __getitem__(self, index):
-        observation, response = self.X[index], self.y[index]
-
-        if self.transform:
-            observation, response = self.transform(observation, response)
-
-        return observation, response
-
-    def __len__(self):
-        return len(self.X)
-
-    def select(self, indices):
-        X = self.X[:, list(indices)]
-        return TensorDataset(X, self.y)
-
-    @property
-    def dimensionality(self):
-        if self.x is None:
-            raise RuntimeError(
-                "Dimensionality is undefined for empty datasets.")
-        return len(self.x[0])
-
-
-class NumpyDataset(HibachiDataset):
-
-    def __init__(self, x, y, transform=None):
-        if not X.ndim == 2:
-            raise ValueError("Invalid number of X dimensions: {}.".format(
-                x.ndim))
-        if not y.ndim == 1:
-            raise ValueError("Invalid number of y dimensions: {}.".format(
-                y.ndim))
-        if not len(X) == len(y):
-            raise ValueError("Length mismatch: {} != {}.".format(
-                len(X), len(y)))
-        self.X = torch.tensor(np.copy(X), dtype=torch.float)
-        self.y = torch.tensor(np.copy(y), dtype=torch.float)
-        self.transform = transform
-
-    def __getitem__(self, index):
-        observation, response = self.x[index], self.y[index]
-        if self.transform:
-            observation, response = self.transform(observation, response)
-        return observation, response
-
-    def __len__(self):
-        return len(self.X)
-
-    def select(self, indices):
-        X = self.X[:, list(indices)]
-        return NumpyDataset(X, self.y)
-
-    @property
-    def dimensionality(self):
-        if self.X is None:
-            raise RuntimeError(
-                "Dimensionality is undefined for empty datasets.")
-        return len(self.X[0])
 
 
 class OrangeSkin(HibachiDataset):
@@ -139,14 +67,6 @@ class OrangeSkin(HibachiDataset):
     def __len__(self):
         return len(self.X)
 
-    @property
-    def dimensionality(self):
-        return 10
-
-    def select(self, indices):
-        X = self.X[:, list(indices)]
-        return TensorDataset(X, self.y)
-
 
 class ANR(Dataset):
     """Synthetic additive nonlinear regression dataset.
@@ -186,14 +106,6 @@ class ANR(Dataset):
 
     def __len__(self):
         return len(self.X)
-
-    @property
-    def dimensionality(self):
-        return 10
-
-    def select(self, indices):
-        X = self.X[:, list(indices)]
-        return TensorDataset(X, self.y)
 
 
 class FunctionDataset(Dataset):
