@@ -14,12 +14,11 @@
 """Classes for preprocessing and loading datasets."""
 import random
 
-import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 
-class OrangeSkin(HibachiDataset):
+class OrangeSkin(Dataset):
     """Synthetic binary classification dataset.
 
     Given Y = -1, (X_1, ..., X_10) ~ N(0, I_10). Given Y = 1, (X_5, ..., X_10) ~
@@ -56,7 +55,6 @@ class OrangeSkin(HibachiDataset):
         self.X = torch.stack(observations)
         self.y = torch.stack(labels)
         self.transform = transform
-
 
     def __getitem__(self, index):
         observation, label = self.X[index], self.y[index]
@@ -106,22 +104,3 @@ class ANR(Dataset):
 
     def __len__(self):
         return len(self.X)
-
-
-class FunctionDataset(Dataset):
-
-    def __init__(self, function, domain, transform=None):
-        self.x = [torch.tensor(x, dtype=torch.float) for x in domain]
-        self.y = [torch.tensor(function(x), dtype=torch.float) for x in domain]
-        self.transform = transform
-
-    def __getitem__(self, index):
-        x, y = self.x[index], self.y[index]
-
-        if self.transform:
-            x, y = self.transform(x, y)
-
-        return x, y
-
-    def __len__(self):
-        return len(self.x)

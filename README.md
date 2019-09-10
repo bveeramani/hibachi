@@ -1,6 +1,6 @@
 # Hibachi
-**Hibachi** is a Python package that implements feature selection methods for
-PyTorch.
+**Hibachi** is a Python package that implements feature selection and model
+interpretation methods for PyTorch.
 
 ## Installation
 Run the following command:
@@ -9,33 +9,110 @@ Run the following command:
 pip install hibachi
 ```
 
-## To-do
-| Feature Name                           | Feature Selector API                                        | sklearn API                                             |
-|----------------------------------------|-------------------------------------------------------------|---------------------------------------------------------|
-| Missing values                         | `fs.identify_missing(missing_threshold=0.6)`                |                                                         |
-| Single Unique Value                    | `fs.identify_single_unique()`                               |                                                         |
-| Collinear (highly correlated) Features | `fs.identify_collinear(correlation_threshold=0.98)`         |                                                         |
-| Low variance                           |                                                             | `VarianceThreshold(threshold=(.8 * (1 - .8)))`          |
-| Chi, F-value, mutual info              |                                                             | `SelectKBest(chi2, k=2).fit_transform(X, y)`            |
-| Recursive feature elimination          |                                                             | `RFE(estimator=svc, n_features_to_select=1, step=1)`    |
-| L1-based feature selection             |                                                             | `LinearSVC(C=0.01, penalty="l1", dual=False).fit(X, y)` |
-| Tree-based feature selection           | `fs.identify_zero_importance(task = 'classification')`      | `SelectFromModel(clf, prefit=True)`                     |
-| Tree-based feature selection           | `fs.identify_low_importance(cumulative_importance = 0.99)`  | `SelectFromModel(clf, prefit=True)`                     |
+## Roadmap
 
+### 0.1.0 (Release 9/11/2019)
+#### hibachi.filter.filters
+* `CollinearityThreshold`
 
-## References
-```
-@incollection {
-    NIPS2017_7270,
-    title = {Kernel Feature Selection via Conditional Covariance Minimization},
-    author = {Chen, Jianbo and Stern, Mitchell and Wainwright, Martin J and
-        Jordan, Michael I},
-    booktitle = {Advances in Neural Information Processing Systems 30},
-    editor = {I. Guyon and U. V. Luxburg and S. Bengio and H. Wallach and R.
-        Fergus and S. Vishwanathan and R. Garnett},
-    pages = {6949--6958},
-    year = {2017},
-    publisher = {Curran Associates, Inc.},
-    url = {http://papers.nips.cc/paper/7270-kernel-feature-selection-via-conditional-covariance-minimization.pdf}
-}
-```
+#### hibachi.filter.criteria
+* `Collinearity`
+
+#### hibachi.interpretation.visualization
+* `heatmap`
+
+#### hibachi.algorithms
+* `SFS`
+* `SBS`
+* `SFFS`
+* `SFBS`
+* `Greedy`
+* `SuperGreedy`
+
+#### hibachi.models
+* `Linear`
+* `Logistic`
+
+#### hibachi.objectives
+* `NegativeMSE`
+* `ClassificationAccuracy`
+
+#### hibachi.wrappers
+* `SFS`
+* `SBS`
+* `SFFS`
+* `SFBS`
+* `Greedy`
+* `SuperGreedy`
+
+#### hibachi.interpretation.explainers
+* `GradientStarInput`
+* `Occulsion`
+* `Saliency`
+
+### 0.2.0 (Release 9/13/2019)
+#### hibachi.filter.filters
+* `MutualInformationThreshold`
+* `ChiSquareThreshold`
+
+#### hibachi.filter.criteria
+* `MutualInformation`
+* `ChiSquare`
+
+#### hibachi.interpretation.explainers
+* `IntegratedGradient`
+* `DeepLIFT`
+* `LIME`
+
+#### hibachi.wrappers
+* `LasVegas`
+* `LasVegasIncremental`
+* `QBB`
+
+#### hibachi.algorithms
+* `LasVegas`
+* `LasVegasIncremental`
+* `QBB`
+
+#### hibachi.models
+* `SVM`
+
+### Development
+In-progress, timelines long or uncertain
+
+#### hibachi.filter.filters
+* `RandomForest`
+
+#### hibachi.filter.criteria
+* `RandomForestWeights`
+* `ANOVA`
+
+#### hibachi.wrappers
+* `Genetic`
+* `RELIEF`
+
+#### hibachi.algorithms
+* `Genetic`
+* `RELIEF`
+
+#### hibachi.objectives
+* `ChernoffDivergence`
+* `BhattacharyyaDivergence`
+* `KLDivergence`
+* `KolmogorovDivergence`
+* `MatusitaDivergence`
+* `PatrickFisherDivergence`
+* `Dependence`
+* `Distance`
+* `Uncertainty`
+* `Consistency`
+
+#### hibachi.interpretation.explainers
+* `LRP`
+* `EpsilonLRP`
+* `SHAP`
+* `KernelSHAP`
+* `MaxSHAP`
+* `DeepSHAP`
+* `LowOrderSHAP`
+* `L2X`

@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import torch
+
 
 class Explainer:
 
@@ -18,10 +20,14 @@ class Explainer:
         raise NotImplementedError
 
 
-class GradientStar(Explainer):
+class GradientStarInput(Explainer):
 
     def __call__(self, model, input):
-        raise NotImplementedError
+        inputs = input.clone().detach().unsqueeze().requires_grad_(True)
+        outputs = model(inputs)
+        index = torch.argmax(outputs)
+        outputs[index].backward()
+        return inputs.grad * inputs
 
 
 class IntegratedGradient(Explainer):
@@ -36,7 +42,7 @@ class LRP(Explainer):
         raise NotImplementedError
 
 
-class EpsilonLRP(Explainer): #????
+class EpsilonLRP(Explainer):  #????
 
     def __call__(self, model, input):
         raise NotImplementedError
@@ -48,7 +54,7 @@ class Occulsion(Explainer):
         raise NotImplementedError
 
 
-class Saliency(Explainer): #????
+class Saliency(Explainer):  #????
 
     def __call__(self, model, input):
         raise NotImplementedError

@@ -13,6 +13,7 @@
 # limitations under the License.
 import torch
 
+
 class Objective:
 
     def __call__(self, features):

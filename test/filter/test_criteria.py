@@ -12,46 +12,201 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for hibachi.criteria"""
+# pylint: disable=missing-docstring
 import unittest
 
 import torch
-from torch.utils.data import Dataset
 
-from hibachi import criteria
+from hibachi.filter import criteria
+from hibachi import datasets
 
 
-class CriteriaTest(unittest.TestCase):
+class PercentMissingValuesTest(unittest.TestCase):
 
-    def test_correlation(self):
-        dataset = StubDataset()
+    def test_call(self):
+        criterion = criteria.PercentMissingValues()
+        X = torch.ones(2, 1)  # pylint: disable=invalid-name
 
-        actual = criteria.correlation(dataset)
+        actual = criterion(X, None)
+        expected = torch.zeros(1, dtype=torch.float)
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_call2(self):
+        criterion = criteria.PercentMissingValues()
+        X = torch.tensor([[1], [float("nan")]])  # pylint: disable=invalid-name
+
+        actual = criterion(X, None)
+        expected = torch.tensor([0.5], dtype=torch.float)
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        criterion = criteria.PercentMissingValues()
+
+        actual = repr(criterion)
+        expected = "PercentMissingValues()"
+
+        self.assertEqual(actual, expected)
+
+
+class VarianceTest(unittest.TestCase):
+
+    def test_call(self):
+        criterion = criteria.Variance()
+        X = torch.arange(1, 5).reshape(2, 2)  # pylint: disable=invalid-name
+
+        actual = criterion(X, None)
+        expected = torch.tensor([2, 2], dtype=torch.float)
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_call2(self):
+        criterion = criteria.Variance(unbiased=False)
+        X = torch.arange(1, 5).reshape(2, 2)  # pylint: disable=invalid-name
+
+        actual = criterion(X, None)
+        expected = torch.tensor([1, 1], dtype=torch.float)
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        criterion = criteria.Variance()
+
+        actual = repr(criterion)
+        expected = "Variance()"
+
+        self.assertEqual(actual, expected)
+
+    def test_repr2(self):
+        criterion = criteria.Variance(unbiased=False)
+
+        actual = repr(criterion)
+        expected = "Variance(unbiased=False)"
+
+        self.assertEqual(actual, expected)
+
+
+class CorrelationTest(unittest.TestCase):
+
+    def test_call(self):
+        criterion = criteria.Correlation()
+        X = torch.tensor([[0, 0], [1, 3], [2, 1], [3, 6]])  # pylint: disable=invalid-name
+        y = torch.tensor([0, 1, 2, 3])  # pylint: disable=invalid-name
+
+        actual = criterion(X, y)
         expected = torch.tensor([1, 0.78072], dtype=torch.float)
 
-        self.assertTrue(isinstance(actual, torch.FloatTensor))
         self.assertTrue(torch.norm(actual - expected) < 0.00001)
 
+    def test_call2(self):
+        criterion = criteria.Correlation(square=True)
+        X = torch.tensor([[0, 0], [1, 3], [2, 1], [3, 6]])  # pylint: disable=invalid-name
+        y = torch.tensor([0, 1, 2, 3])  # pylint: disable=invalid-name
 
-class StubDataset(Dataset):
+        actual = criterion(X, y)
+        expected = torch.tensor([1, 0.6095237184], dtype=torch.float)
 
-    def __init__(self):
-        pass
+        self.assertTrue(torch.norm(actual - expected) < 0.00001)
 
-    def __getitem__(self, index):
-        if index == 0:
-            return torch.tensor([0, 0], dtype=torch.float), torch.tensor(
-                0, dtype=torch.float)
-        elif index == 1:
-            return torch.tensor([1, 3], dtype=torch.float), torch.tensor(
-                1, dtype=torch.float)
-        elif index == 2:
-            return torch.tensor([2, 1], dtype=torch.float), torch.tensor(
-                2, dtype=torch.float)
-        elif index == 3:
-            return torch.tensor([3, 6], dtype=torch.float), torch.tensor(
-                3, dtype=torch.float)
-        else:
-            raise IndexError("dataset index out of range")
+    def test_repr(self):
+        criterion = criteria.Correlation()
 
-    def __len__(self):
-        return 3
+        actual = repr(criterion)
+        expected = "Correlation()"
+
+        self.assertEqual(actual, expected)
+
+    def test_repr2(self):
+        criterion = criteria.Correlation(square=True)
+
+        actual = repr(criterion)
+        expected = "Correlation(square=True)"
+
+        self.assertEqual(actual, expected)
+
+
+class CCMTest(unittest.TestCase):
+
+    def test_call(self):
+        dataset = datasets.OrangeSkin(n=100)
+        X = torch.stack([x for x, y in dataset])  # pylint: disable=invalid-name
+        y = torch.stack([y for x, y in dataset])  # pylint: disable=invalid-name
+        criterion = criteria.CCM(m=4)
+
+        actual = criterion(X, y)
+
+        self.assertTrue(all(actual[:4] > 0.8))
+        self.assertTrue(all(actual[4:] < 0.2))
+
+    def test_repr(self):
+        criterion = criteria.CCM(m=1)
+
+        actual = repr(criterion)
+        expected = "CCM(m=1)"
+
+        self.assertEqual(actual, expected)
+
+    def test_repr2(self):
+        criterion = criteria.CCM(m=1, epsilon=1, iterations=1, lr=1)
+
+        actual = repr(criterion)
+        expected = "CCM(m=1, epsilon=1, iterations=1, lr=1)"
+
+        self.assertEqual(actual, expected)
+
+
+class CollinearityTest(unittest.TestCase):
+
+    def test_call(self):
+        raise NotImplementedError
+
+    def test_repr(self):
+        criterion = criteria.Collinearity()
+
+        actual = repr(criterion)
+        expected = "Collinearity()"
+
+        self.assertEqual(actual, expected)
+
+
+class MutualInformationTest(unittest.TestCase):
+
+    def test_call(self):
+        raise NotImplementedError
+
+    def test_repr(self):
+        criterion = criteria.MutualInformation()
+
+        actual = repr(criterion)
+        expected = "MutualInformation()"
+
+        self.assertEqual(actual, expected)
+
+
+class ChiSquareTest(unittest.TestCase):
+
+    def test_call(self):
+        raise NotImplementedError
+
+    def test_repr(self):
+        criterion = criteria.ChiSquare()
+
+        actual = repr(criterion)
+        expected = "ChiSquare()"
+
+        self.assertEqual(actual, expected)
+
+
+class ANOVATest(unittest.TestCase):
+
+    def test_call(self):
+        raise NotImplementedError
+
+    def test_repr(self):
+        criterion = criteria.ANOVA()
+
+        actual = repr(criterion)
+        expected = "ANOVA()"
+
+        self.assertEqual(actual, expected)

@@ -11,84 +11,248 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for hibachi.filters"""
+"""Tests for hibachi.filter.filters"""
+# pylint: disable=missing-docstring
 import unittest
 
 import torch
-from torch.utils.data import Dataset
 
-from hibachi import filters, datasets
+from hibachi import algorithms
+from hibachi.filter import filters, criteria
 
 
-class FiltersTest(unittest.TestCase):
+class StubCriterion(criteria.Criterion):
 
-    def test_VarianceThreshold(self):
-        class StubDataset(Dataset):
+    def __call__(self, X, y):
+        if not len(X.shape) == 2:
+            raise ValueError("Expected X to have two dimensions but found %d." %
+                             len(X.shape))
+        return torch.arange(0, X.shape[1])
 
-            def __init__(self):
-                x0 = torch.tensor([0, 0], dtype=torch.float)
-                x1 = torch.tensor([0, 1], dtype=torch.float)
-                self.X = torch.stack([x0, x1])
+    def __repr__(self):
+        return "StubCriterion()"
 
-            def __getitem__(self, index):
-                return self.X[index], None
 
-            def __len__(self):
-                return len(self.X)
-        criterian = criteria.Variance
-        filter = filters.VarianceThreshold()
-        dataset = StubDataset()
+class StubFilter(algorithms.Selector):
 
-    def test_correlation(self):
-        dataset = StubDataset(n=50, d=2)
+    def __init__(self, indices):
+        self.indices = indices
 
-        actual = rankers.correlation(dataset)
-        expected = torch.tensor([1, 2])
+    def __select__(self, X, y):
+        if not len(X.shape) == 2:
+            raise ValueError("Expected X to have two dimensions but found %d." %
+                             len(X.shape))
+        return X[:, self.indices]
 
-        self.assertTrue(isinstance(actual, torch.LongTensor))
-        self.assertTrue(torch.equal(actual, expected))
+    def __repr__(self):
+        return "StubFilter(indices={0})".format(self.indices)
 
-    def test_ccm(self):
-        dataset = StubDataset(n=50, d=2)
 
-        actual = rankers.ccm(dataset, num_iterations=10)
-        expected = torch.tensor([1, 2])
+class FilterTest(unittest.TestCase):
 
-        self.assertTrue(torch.equal(actual, expected))
+    def test_call(self):
+        select = filters.Filter(lambda score: score > 0,
+                                criterion=StubCriterion())
+        X = torch.arange(1, 5).reshape(2, 2)  # pylint: disable=invalid-name
 
-    def test_ccm_correctly_ranks_anr(self):
-        dataset = datasets.ANR(100)
+        actual = select(X, None)
+        expected = torch.tensor([[2], [4]])
 
-        ranks = rankers.ccm(dataset, m=4, epsilon=0.1, num_iterations=1000)
+        self.assertTrue(actual.equal(expected))
 
-        actual = torch.median(ranks[0:4])
-        expected = int((4 + 1) / 2)
+    def test_repr(self):
+
+        class StubFunction:
+
+            def __call__(self, score):
+                return True
+
+            def __repr__(self):
+                return "StubFunction()"
+
+        selector = filters.Filter(function=StubFunction(),
+                                  criterion=StubCriterion())
+
+        actual = repr(selector)
+        expected = "Filter(function=StubFunction(), criterion=StubCriterion())"
 
         self.assertEqual(actual, expected)
 
-    def test_ccm_correctly_ranks_orange_skin(self):
-        dataset = datasets.OrangeSkin(100)
 
-        ranks = rankers.ccm(dataset, m=4, epsilon=0.001, num_iterations=100)
+class SelectTest(unittest.TestCase):
 
-        actual = torch.median(ranks[0:4])
-        expected = int((4 + 1) / 2)
+    def test_call(self):
+        select = filters.Select(k=1, criterion=StubCriterion())
+        X = torch.arange(1, 5).reshape(2, 2)  # pylint: disable=invalid-name
+
+        actual = select(X, None)
+        expected = torch.tensor([[2], [4]])
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        select = filters.Select(k=1, criterion=StubCriterion())
+
+        actual = repr(select)
+        expected = "Select(k=1, criterion=StubCriterion())"
+
+        self.assertEqual(actual, expected)
+
+    def test_repr2(self):
+        select = filters.Select(k=1, criterion=StubCriterion(), minimize=True)
+
+        actual = repr(select)
+        expected = "Select(k=1, criterion=StubCriterion(), minimize=True)"
 
         self.assertEqual(actual, expected)
 
 
-class StubDataset(Dataset):
+class ComposeTest(unittest.TestCase):
 
-    def __init__(self, n, d):
-        self.samples = []
+    def test_call(self):
+        select = filters.Compose(
+            [StubFilter(indices=[1, 2]),
+             StubFilter(indices=[0])])
+        X = torch.arange(1, 10).reshape(3, 3)  # pylint: disable=invalid-name
 
-        for _ in range(n):
-            x = torch.rand(d, dtype=torch.float)
-            y = x[0]
-            self.samples.append((x, y))
+        actual = select(X, None)
+        expected = torch.tensor([[2], [5], [8]])
 
-    def __getitem__(self, index):
-        return self.samples[index]
+        self.assertTrue(actual.equal(expected))
 
-    def __len__(self):
-        return len(self.samples)
+    def test_repr(self):
+        select = filters.Compose(
+            [StubFilter(indices=[1, 2]),
+             StubFilter(indices=[0])])
+
+        actual = repr(select)
+        expected = "Compose([\n    StubFilter(indices=[1, 2]),\n    StubFilter(indices=[0])\n])"
+
+        self.assertEqual(actual, expected)
+
+
+class ThresholdTest(unittest.TestCase):
+
+    def test_call(self):
+        select = filters.Threshold(cutoff=1, criterion=StubCriterion())
+        X = torch.arange(1, 10).reshape(3, 3)  # pylint: disable=invalid-name
+
+        actual = select(X, None)
+        expected = X[:, [1, 2]]
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        select = filters.Threshold(cutoff=1, criterion=StubCriterion())
+
+        actual = repr(select)
+        expected = "Threshold(cutoff=1, criterion=StubCriterion())"
+
+        self.assertEqual(actual, expected)
+
+    def test_repr2(self):
+        select = filters.Threshold(cutoff=1,
+                                   criterion=StubCriterion(),
+                                   minimize=True)
+
+        actual = repr(select)
+        expected = "Threshold(cutoff=1, criterion=StubCriterion(), minimize=True)"
+
+        self.assertEqual(actual, expected)
+
+
+class PercentMissingThresholdTest(unittest.TestCase):
+
+    def test_call(self):
+        select = filters.PercentMissingThreshold(maximum=0.5)
+        X = torch.tensor([
+            [1, 1, float('nan')],  # pylint: disable=invalid-name
+            [1, float('nan'), float('nan')]
+        ])
+
+        actual = select(X, None)
+        expected = X[:, [0, 1]]
+
+        # torch.equal doesn't work properly with nan values
+        self.assertTrue(torch.isnan(actual).equal(torch.isnan(expected)))
+        actual[torch.isnan(actual)] = 0
+        expected[torch.isnan(expected)] = 0
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        select = filters.PercentMissingThreshold(maximum=0.5)
+
+        actual = repr(select)
+        expected = "PercentMissingThreshold(maximum=0.5)"
+
+        self.assertEqual(actual, expected)
+
+
+class VarianceThresholdTest(unittest.TestCase):
+
+    def test_call(self):
+        select = filters.VarianceThreshold(minimum=1)
+        X = torch.tensor([[-1, 1], [1, 1]])  # pylint: disable=invalid-name
+
+        actual = select(X, None)
+        expected = X[:, [0]]
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        select = filters.VarianceThreshold(minimum=1)
+
+        actual = repr(select)
+        expected = "VarianceThreshold(minimum=1)"
+
+        self.assertEqual(actual, expected)
+
+
+class CorrelationThresholdTest(unittest.TestCase):
+
+    def test_call(self):
+        select = filters.CorrelationThreshold(minimum=1)
+        X = torch.tensor([[1, 0, 0], [2, 0, 0], [3, 0, 0]])  # pylint: disable=invalid-name
+        y = torch.tensor([1, 2, 3])  # pylint: disable=invalid-name
+
+        actual = select(X, y)
+        expected = X[:, [0]]
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        select = filters.CorrelationThreshold(minimum=1)
+
+        actual = repr(select)
+        expected = "CorrelationThreshold(minimum=1)"
+
+        self.assertEqual(actual, expected)
+
+
+class CCMTest(unittest.TestCase):
+
+    def test_call(self):
+        select = filters.CCM(k=1)
+        X = torch.tensor([[1, 0, 0], [2, 0, 0], [3, 0, 0]])  # pylint: disable=invalid-name
+        y = torch.tensor([1, 2, 3])  # pylint: disable=invalid-name
+
+        actual = select(X, y)
+        expected = X[:, [0]]
+
+        self.assertTrue(actual.equal(expected))
+
+    def test_repr(self):
+        select = filters.CCM(k=1)
+
+        actual = repr(select)
+        expected = "CCM(k=1)"
+
+        self.assertEqual(actual, expected)
+
+    def test_repr2(self):
+        select = filters.CCM(k=1, epsilon=0.1, iterations=1000)
+
+        actual = repr(select)
+        expected = "CCM(k=1, epsilon=0.1, iterations=1000)"
+
+        self.assertEqual(actual, expected)

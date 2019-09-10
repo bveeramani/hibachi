@@ -18,6 +18,7 @@ from tqdm import trange
 
 from hibachi import models, measures
 
+
 class TrainingAlgorithm:
 
     def __init__(self,
@@ -34,12 +35,13 @@ class TrainingAlgorithm:
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.loss_func = loss_func
-        self.learning_rate =  learning_rate
+        self.learning_rate = learning_rate
         self.optimizer_class = optimizer_class
 
     def __call__(self, model, dataset):
         dataloader = DataLoader(dataset, self.batch_size, shuffle=True)
-        optimizer = self.optimizer_class(model.parameters(), lr=self.learning_rate)
+        optimizer = self.optimizer_class(model.parameters(),
+                                         lr=self.learning_rate)
         model.train()
 
         for _ in trange(self.num_epochs):
@@ -54,6 +56,7 @@ class TrainingAlgorithm:
 
 
 evaluate(weights)
+
 
 class SuperGreedy:
 

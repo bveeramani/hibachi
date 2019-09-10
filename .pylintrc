@@ -1,0 +1,4 @@
+[TYPECHECK]
+
+generated-members=numpy.*,torch.*
+disable=not-callable

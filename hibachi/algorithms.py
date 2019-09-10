@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 class Selector:
 
-    def __call__(X, y):
+    def __call__(self, X, y):
+        return self.__select__(X, y)
+
+    def __select__(self, X, y):
         raise NotImplementedError
 
 
@@ -42,19 +46,25 @@ class RELIEF(Selector):
         raise NotImplementedError
 
 
-class SFG(Selector):
+class SFS(Selector):
 
     def __call__(X, y):
         raise NotImplementedError
 
 
-class SFBG(Selector):
+class SBS(Selector):
 
     def __call__(X, y):
         raise NotImplementedError
 
 
-class SFFG(Selector):
+class SFFS(Selector):
+
+    def __call__(X, y):
+        raise NotImplementedError
+
+
+class SFBS(Selector):
 
     def __call__(X, y):
         raise NotImplementedError

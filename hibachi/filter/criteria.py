@@ -12,84 +12,268 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Criteria for scoring features."""
-from timeit import default_timer as timer
+import random
 
-import numpy as np
 import torch
 
+__all__ = [
+    "Criterion", "PercentMissingValues", "Variance", "Correlation", "CCM",
+    "Collinearity", "MutualInformation", "ChiSquare", "ANOVA"
+]
 
+
+# pylint: disable=too-few-public-methods
 class Criterion:
+    """Base class for all feature scoring methods."""
 
+    # pylint: disable=invalid-name
     def __call__(self, X, y):
         raise NotImplementedError
 
+    def __repr__(self):
+        return self.__class__.__name__ + "()"
 
-class Missing(Criterion):
+
+class PercentMissingValues(Criterion):
+    """Calculates the proportion of missing values in each feature.
+
+    Example:
+        >>> criterion = criteria.PercentMissingValues()
+        >>> X = torch.tensor([[1, 1], [float("nan"), 1]])
+        >>> criterion(X, None)
+        tensor([0.5000, 0.0000])
+    """
 
     def __call__(self, X, y):
-        return torch.sum(torch.isnan(X), dim=0) / len(X)
+        """
+        Arguments:
+            X (Tensor): A two-dimensional design matrix.
+            y (Tensor): A one-dimensional label vector. Can be None.
+
+        Returns:
+            A one-dimensional vector containing the percent of missing features
+            in each feature.
+
+        Raises:
+            ValueError: if X is not two-dimensional.
+        """
+        if not len(X.shape) == 2:
+            raise ValueError("Expected X to have two dimensions but found %d." %
+                             len(X.shape))
+
+        counts = torch.sum(torch.isnan(X), dim=0)
+        return counts.type(torch.FloatTensor) / len(X)
 
 
 class Variance(Criterion):
+    """Calculates the variance of each feature.
+
+    Arguments:
+        unbiased (bool, optional): If true, calculate variance using Bessel's
+            correction.
+
+    Example:
+        >>> criterion = criteria.PercentMissingValues()
+        >>> X = torch.arange(1, 5).reshape(2, 2)
+        >>> criterion(X, None)
+        tensor([2., 2.])
+    """
 
     def __init__(self, unbiased=True):
         self.unbiased = unbiased
 
     def __call__(self, X, y):
-        return torch.var(X, axis=0, unbiased=self.unbiased)
+        """
+        If X is not a float or a double, it will be cast as torch.FloatTensor.
+
+        Arguments:
+            X (Tensor): A two-dimensional design matrix.
+            y (Tensor): A one-dimensional label vector. Can be None.
+
+        Returns:
+            A one-dimensional vector containing the variance of each feature.
+
+        Raises:
+            ValueError: if X is not two-dimensional.
+        """
+        if not len(X.shape) == 2:
+            raise ValueError("Expected X to have two dimensions but found %d." %
+                             len(X.shape))
+
+        if not X.dtype == torch.float and not X.dtype == torch.double:
+            X = X.type(torch.FloatTensor)
+
+        return torch.var(X, dim=0, unbiased=self.unbiased)
+
+    def __repr__(self):
+        return "Variance({0})".format("" if self.unbiased else "unbiased=False")
 
 
 class Correlation(Criterion):
     """Calculates the Pearson correlation coefficient for each covariate.
 
-    Arguments:
-        dataset: An iterable of (x, y) pairs of tensors.
+    Implementation is based on equation (1) in:
+        G. Chandrashekar, F. Sahin. A survey on feature selection methods.
 
-    Returns:
-        A one-dimensional tensor containing a Pearson correlation coefficient
-        for each covariate.
+    Arguments:
+        square (bool, optional): If true, correlation scores will be squared.
+
+    Example:
+        >>> criterion = criteria.Correlation()
+        >>> X = torch.tensor([[0, 0], [1, 3], [2, 1], [3, 6]])
+        >>> y = torch.tensor([0, 1, 2, 3])
+        >>> criterion(X, y)
+        tensor([1.0000, 0.6095])
     """
 
-    def __init__(self, square=True):
+    def __init__(self, square=False):
         self.square = square
 
     def __call__(self, X, y):
-        x_hat = torch.mean(x, dim=0)
+        """
+        If X is not a float or a double, X will be cast as torch.FloatTensor.
+        If y is not a float or a double, y will be cast as torch.FloatTensor.
+
+        Arguments:
+            X (Tensor): A two-dimensional design matrix.
+            y (Tensor): A one-dimensional label vector.
+
+        Returns:
+            A one-dimensional vector containing the correlation of each feature
+            to the response.
+
+        Raises:
+            ValueError: if X is not two-dimensional.
+            ValueError: if y is not one-dimensional.
+            ValueError: if len(X) is not equal to len(y).
+        """
+        if not len(X.shape) == 2:
+            raise ValueError("Expected X to have two dimensions but found %d." %
+                             len(X.shape))
+        if not len(y.shape) == 1:
+            raise ValueError("Expected y to have one dimensions but found %d." %
+                             len(y.shape))
+        if not len(X) == len(y):
+            raise ValueError("X and y have incompatible shapes: %s != %s." %
+                             (len(X), len(y)))
+
+        if not X.dtype == torch.float and not X.dtype == torch.double:
+            X = X.type(torch.FloatTensor)
+        if not y.dtype == torch.float and not y.dtype == torch.double:
+            y = y.type(torch.FloatTensor)
+
+        x_hat = torch.mean(X, dim=0)
         y_hat = torch.mean(y)
 
-        s_xy = torch.sum((x - x_hat) * (y - y_hat).view(-1, 1), dim=0)
-        s2_x = torch.sum(torch.pow(x - x_hat, 2), dim=0)
+        s_xy = torch.sum((X - x_hat) * (y - y_hat).view(-1, 1), dim=0)
+        s2_x = torch.sum(torch.pow(X - x_hat, 2), dim=0)
         s2_y = torch.sum(torch.pow(y - y_hat, 2)).view(-1, 1)
 
         scores = torch.squeeze(s_xy / torch.sqrt(s2_x * s2_y))
-        return scores ** 2 if self.square else scores
+        return scores**2 if self.square else scores
+
+    def __repr__(self):
+        return "Correlation({0})".format("square=True" if self.square else "")
 
 
-class Colinearity(Criterion):
-    pass
+class CCM(Criterion):
+    """Implements the Conditional Covariance Minimization algorithm.
 
+    It has been proposed in Kernel Feature Selection via Conditional Covariance Minimization.
+        https://arxiv.org/abs/1707.01164
 
-class MutualInformation(Criterion):
-    pass
+    Arguments:
+        m (int): The number of features to select.
+        epsilon (float): Use 0.001 for classification and 0.1 for regression.
+        iterations (int): The number of iterations to execute.
+        lr (float): The learning rate.
 
+    Raises:
+        ValueError: if m is not a positive integer.
+        ValueError: if epsilon is not a positive number.
+        ValueError: if iterations is not a positive integer.
+        ValueError: if lr is not a positive number.
 
-class ChiSquare(Criterion):
-    pass
-
-
-class ANOVA(Criterion):
-    pass
-
-
-class ConditionalCovariance(Criterion):
+    Example:
+        >>> dataset = datasets.OrangeSkin(n=100)
+        >>> X = torch.stack([x for x, y in dataset])
+        >>> y = torch.stack([y for x, y in dataset])
+        >>> criterion = criteria.CCM(m=4)
+        >>> criterion(X, y)
+        tensor([0.9658, 0.9658, 0.9658, 0.9658, 0.0000, 0.0000, 0.0000, 0.0000, 0.1366,
+        0.0000])
+    """
 
     def __init__(self, m, epsilon=0.001, iterations=100, lr=0.001):
-        self.m = m
+        if m <= 0:
+            raise ValueError("m must be a positive integer.")
+        if epsilon <= 0:
+            raise ValueError("epsilon must be a positive number.")
+        if iterations <= 0:
+            raise ValueError("iterations must be a positive integer.")
+        if lr <= 0:
+            raise ValueError("lr must be a positive number.")
+
+        self.m = m  # pylint: disable=invalid-name
         self.epsilon = epsilon
         self.iterations = iterations
-        self.lr = lr
+        self.lr = lr  # pylint: disable=invalid-name
 
+    # pylint: disable=invalid-name
     def __call__(self, X, y):
+        """
+        If X is not a float or a double, X will be cast as torch.FloatTensor.
+        If y is not a float or a double, y will be cast as torch.FloatTensor.
+
+        Arguments:
+            X (Tensor): A two-dimensional design matrix.
+            y (Tensor): A one-dimensional label vector.
+
+        Returns:
+            A one-dimensional vector containing the correlation of each feature
+            to the response.
+
+        Raises:
+            ValueError: if X is not two-dimensional.
+            ValueError: if y is not one-dimensional.
+            ValueError: if len(X) is not equal to len(y).
+        """
+
+        def center(X):
+            """Returns the centered version of the given square matrix.
+
+            The centered square matrix is defined by the following formula:
+
+                X - (1/n) 1 1^T X - (1/n) X 1 1^T + (1/n^2) 1 1^T X 1 1^T.
+
+            This function uses code sourced from https://github.com/Jianbo-Lab/CCM.
+
+            Arguments:
+                X: An square tensor.
+
+            Returns:
+                The row- and column-centered version of X.
+            """
+            n = len(X)
+            O = torch.ones(n, n)
+            return X - (1 / n) * O @ X - (1 / n) * X @ O + (
+                1 / pow(n, 2)) * O @ X @ O
+
+        if not len(X.shape) == 2:
+            raise ValueError("Expected X to have two dimensions but found %d." %
+                             len(X.shape))
+        if not len(y.shape) == 1:
+            raise ValueError("Expected y to have one dimensions but found %d." %
+                             len(y.shape))
+        if not len(X) == len(y):
+            raise ValueError("X and y have incompatible shapes: %s != %s." %
+                             (len(X), len(y)))
+
+        if not X.dtype == torch.float and not X.dtype == torch.double:
+            X = X.type(torch.FloatTensor)
+        if not y.dtype == torch.float and not y.dtype == torch.double:
+            y = y.type(torch.FloatTensor)
+
         n, d = X.shape
 
         # Whitening transform for X
@@ -105,12 +289,13 @@ class ConditionalCovariance(Criterion):
 
         w = (self.m / d) * torch.ones(d)
 
-        for iteration in trange(self.iterations, leave=False):
+        for _ in range(self.iterations):
             w.requires_grad_(True)
 
             X_w = X * w
             K_X_w = torch.exp(-torch.sum(
-                (X_w.unsqueeze(1) - X_w.unsqueeze(0))**2, dim=2) / (2 * sigma**2))
+                (X_w.unsqueeze(1) - X_w.unsqueeze(0))**2, dim=2) /
+                              (2 * sigma**2))
             G_X_w = center(K_X_w)
             G_X_w_inv = torch.inverse(G_X_w + n * self.epsilon * torch.eye(n))
 
@@ -125,33 +310,61 @@ class ConditionalCovariance(Criterion):
 
         return w
 
-
-def center(X):
-    """Returns the centered version of the given square matrix.
-
-    The centered square matrix is defined by the following formula:
-
-        X - (1/n) 1 1^T X - (1/n) X 1 1^T + (1/n^2) 1 1^T X 1 1^T.
-
-    This function uses code sourced from https://github.com/Jianbo-Lab/CCM.
-
-    Arguments:
-        X: An square tensor.
-
-    Returns:
-        The row- and column-centered version of X.
-    """
-    n = len(X)
-    O = torch.ones(n, n)
-    return X - (1 / n) * O @ X - (1 / n) * X @ O + (1 / pow(n, 2)) * O @ X @ O
+    def __repr__(self):
+        string = "CCM(m={0}".format(self.m)
+        if self.epsilon != 0.001:
+            string += ", epsilon={0}".format(self.epsilon)
+        if self.iterations != 100:
+            string += ", iterations={0}".format(self.iterations)
+        if self.lr != 0.001:
+            string += ", lr={0}".format(self.lr)
+        return string + ")"
 
 
+# pylint: disable=missing-docstring
+class Collinearity(Criterion):
+
+    def __call__(self, X, y):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return "Collinearity()"
+
+
+class MutualInformation(Criterion):
+
+    def __call__(self, X, y):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return "MutualInformation()"
+
+
+class ChiSquare(Criterion):
+
+    def __call__(self, X, y):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return "ChiSquare()"
+
+
+class ANOVA(Criterion):
+
+    def __call__(self, X, y):
+        raise NotImplementedError
+
+    def __repr__(self):
+        return "ANOVA()"
+
+
+# pylint: disable=invalid-name
 def project(v, z):
     """Returns the projection of the given vector onto the positive simplex.
 
     The positive simplex is the set defined by:
 
-        {w : \sum_i w_i = z, w_i >= 0}.
+        {w : sum_i w_i = z, w_i >= 0}.
 
     Implements the formula specified in Figure 2 of Duchi et al. (2008).
     See http://stanford.edu/~jduchi/projects/DuchiShSiCh08.pdf.
