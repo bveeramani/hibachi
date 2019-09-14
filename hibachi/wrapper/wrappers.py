@@ -14,48 +14,8 @@
 """Wrapper methods for feature selection."""
 import torch
 from torch.utils.data import DataLoader
-from tqdm import trange
 
 from hibachi import models, measures
-
-
-class TrainingAlgorithm:
-
-    def __init__(self,
-                 loss_func,
-                 batch_size=32,
-                 num_epochs=100,
-                 learning_rate=0.001,
-                 optimizer_class=torch.optim.Adam):
-        if not batch_size > 0:
-            raise ValueError("Invalid batch size: {}".format(batch_size))
-        if not num_epochs > 0:
-            raise ValueError("Invalid epochs value: {}".format(num_epochs))
-
-        self.batch_size = batch_size
-        self.num_epochs = num_epochs
-        self.loss_func = loss_func
-        self.learning_rate = learning_rate
-        self.optimizer_class = optimizer_class
-
-    def __call__(self, model, dataset):
-        dataloader = DataLoader(dataset, self.batch_size, shuffle=True)
-        optimizer = self.optimizer_class(model.parameters(),
-                                         lr=self.learning_rate)
-        model.train()
-
-        for _ in trange(self.num_epochs):
-            for inputs, labels in dataloader:
-                model.zero_grad()
-
-                outputs = model(inputs)
-                loss = self.loss_func(outputs, labels)
-
-                loss.backward()
-                optimizer.step()
-
-
-evaluate(weights)
 
 
 class SuperGreedy:

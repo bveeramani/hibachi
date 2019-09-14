@@ -13,6 +13,12 @@
 # limitations under the License.
 
 
+class Objective:
+
+    def __call__(self, features):
+        raise NotImplementedError
+
+
 class Selector:
 
     def __call__(self, X, y):
