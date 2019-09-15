@@ -12,32 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for hibachi.wrapper.objectives"""
+# pylint: disable=missing-docstring
 import unittest
 
 import torch
 
-from hibachi import objectives
-from hibachi.algorithms import RegressionTrainingAlgorithm
+from hibachi.wrapper import objectives
 
 
-class StubModel(torch.nn.Module):
+class MeanSquaredErrorTest(unittest.TestCase):
 
-    def __init__(self, in_features):
-        super().__init__()
-        # We need this to prevent "ValueError: optimizer got an empty parameter list"
-        self.linear = torch.nn.Linear(in_features, 1)
+    def test_evaluate(self):
+        X = torch.zeros(1, 1)
+        y = torch.ones(1)
+        objective = objectives.MeanSquaredError(torch.nn.Identity, X, y)
 
-    def forward(self, inputs):
-        return torch.zeros(len(inputs), 1, requires_grad=True)
+        features = torch.ones(1)
+        actual = objective(features)
+        expected = torch.ones(1)
+
+        self.assertEqual(actual, expected)
 
 
-class NegativeMSETest(unittest.TestCase):
+class ClassificationErrorTest(unittest.TestCase):
 
-    def test_NegativeMSE(self):
-        X = torch.tensor([[0], [1]], dtype=torch.float)
-        y = torch.tensor([0, 1], dtype=torch.float)
-        objective = objectives.NegativeMSE(StubModel, X, y)
-        score = objective(torch.tensor([1]))
+    def test_evaluate(self):
+        X = torch.arange(1, 10).reshape(3, 3)
+        y = torch.arange(0, 3)
+        objective = objectives.ClassificationError(torch.nn.Identity, X, y)
 
-        # -1 / 2 = -((0 - 0)^2  + (1 - 0)^2) / 2
-        self.assertEqual(score, -1 / 2)
+        features = torch.ones(2)
+        actual = objective(features)
+        expected = torch.tensor(2 / 3)
+
+        self.assertEqual(actual, expected)

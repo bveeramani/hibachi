@@ -37,6 +37,9 @@ class TrainingAlgorithm:
         self.transform_outputs = transform_outputs
 
     def __call__(self, model, dataset):
+        if not list(model.parameters()):
+            return
+
         dataloader = DataLoader(dataset, self.batch_size, shuffle=True)
         optimizer = self.optimizer_class(model.parameters(),
                                          lr=self.learning_rate)
